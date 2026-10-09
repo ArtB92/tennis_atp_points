@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/", label: "Rankings", current: (p: string) => p === "/" },
   { href: "/projection", label: "Projection", current: (p: string) => p === "/projection" || p.endsWith("/projection") },
+  { href: "/calendar", label: "Calendar", current: (p: string) => p.startsWith("/calendar") },
 ];
 
 export function SiteNav({ date }: { date: string }) {

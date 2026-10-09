@@ -1,6 +1,6 @@
 import raw from "@/data/atp.json";
-import { ageOn } from "./dates";
-import type { Dataset, Level, Player, Result, Tournament } from "./types";
+import { addDays, ageOn } from "./dates";
+import type { Dataset, Draw, DrawEntrant, Level, Player, Result, Tournament } from "./types";
 
 const ds = raw as Dataset;
 
@@ -77,4 +77,39 @@ export function rankingRows(): RankingRow[] {
       nextDrop: next ? { event: next.tournament.name, level: next.tournament.level, points: next.points, date: next.drops } : null,
     };
   });
+}
+
+const drawsById = new Map((ds.draws ?? []).map((d) => [d.tournamentId, d]));
+
+export function getTournament(id: string): Tournament | undefined {
+  return tournamentsById.get(id);
+}
+
+export function getDraw(id: string): Draw | undefined {
+  return drawsById.get(id);
+}
+
+export interface CalendarEntry {
+  tournament: Tournament;
+  /** Expected dates of the next edition: the same week next year. */
+  nextStart: string;
+  nextEnd: string;
+  champion: DrawEntrant | null;
+  runnerUp: DrawEntrant | null;
+}
+
+/** The next edition of every tracked event, in date order. */
+export function calendar(): CalendarEntry[] {
+  return ds.tournaments
+    .map((t) => {
+      const entrants = drawsById.get(t.id)?.entrants ?? [];
+      return {
+        tournament: t,
+        nextStart: addDays(t.start, 364),
+        nextEnd: addDays(t.end, 364),
+        champion: entrants.find((e) => e.finish === "W") ?? null,
+        runnerUp: entrants.find((e) => e.finish === "F") ?? null,
+      };
+    })
+    .sort((a, b) => a.nextStart.localeCompare(b.nextStart) || a.tournament.name.localeCompare(b.tournament.name));
 }
