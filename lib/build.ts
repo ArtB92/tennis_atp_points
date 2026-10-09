@@ -12,8 +12,10 @@ export interface BuildInput {
    * or Sackmann-style files, where it is the event's start date.
    */
   matchesCsvs: string[];
-  /** An official ranking list (ranking_date, rank, player, points). Without one, rankings are estimated. */
+  /** An official ranking list as CSV (ranking_date, rank, player, points), keyed by player id. */
   rankingsCsv?: string;
+  /** An official ranking list keyed by player name (e.g. from ESPN). Without either list, rankings are estimated. */
+  ranking?: OfficialRanking;
   /** Player bios (player_id, name_first, name_last, hand, dob, ioc). Without one, bios come from match rows. */
   playersCsv?: string;
   source: Dataset["meta"]["source"];
@@ -22,6 +24,12 @@ export interface BuildInput {
   /** How many ranked players to keep. */
   topN?: number;
   generatedAt?: string;
+}
+
+export interface OfficialRanking {
+  /** Monday the list was published, ISO date. */
+  date: string;
+  entries: { rank: number; points: number; name: string }[];
 }
 
 /** Expected start of the next edition: same week next year. */
@@ -72,7 +80,10 @@ export function buildDataset(input: BuildInput): Dataset {
   const rankRows = input.rankingsCsv ? parseCSV(input.rankingsCsv) : [];
   const rankingDateCompact = rankRows.reduce((max, r) => (r.ranking_date > max ? r.ranking_date : max), "");
   if (input.rankingsCsv && !rankingDateCompact) throw new Error("Rankings file has no ranking_date values");
-  const asOf = rankingDateCompact ? fromCompact(rankingDateCompact) : (input.asOf ?? toISO(new Date()));
+  const official = Boolean(input.rankingsCsv || input.ranking);
+  const asOf = rankingDateCompact
+    ? fromCompact(rankingDateCompact)
+    : (input.ranking?.date ?? input.asOf ?? toISO(new Date()));
 
   // Events.
   const grouped = new Map<string, Record<string, string>[]>();
@@ -95,8 +106,8 @@ export function buildDataset(input: BuildInput): Dataset {
     events.push({ id, name: first.tourney_name, level, surface: first.surface, drawSize, start, end, drops: estimatedDrop(end), officialDrop: estimatedDrop(end), year, rows });
   }
 
-  // When next year's edition has already started, last year's points are gone
-  // (live-ranking convention: the new result replaces the old one).
+  // Points drop the Monday after next year's edition ends. For an estimated live
+  // ranking, they go as soon as that edition starts (the new result replaces them).
   const byKey = new Map<string, Event>();
   const suffix = (id: string) => id.replace(/^\d{4}-/, "");
   for (const e of events) {
@@ -107,7 +118,7 @@ export function buildDataset(input: BuildInput): Dataset {
     const next = byKey.get(`id:${e.year + 1}:${suffix(e.id)}`) ?? byKey.get(`name:${e.year + 1}:${e.name.toLowerCase()}`);
     if (!next) continue;
     e.officialDrop = addDays(mondayOf(next.end), 7);
-    e.drops = next.start <= asOf ? next.start : e.officialDrop;
+    e.drops = !official && next.start <= asOf ? next.start : e.officialDrop;
   }
 
   // Results per player for every event up to the ranking date (including ones that
@@ -144,12 +155,16 @@ export function buildDataset(input: BuildInput): Dataset {
     }
   }
 
+  const bios = snapshots(matchRows, asOf);
   const players = input.rankingsCsv
     ? officialPlayers(rankRows, rankingDateCompact, input.playersCsv ?? "", topN)
-    : estimatedPlayers(matchRows, allResults, asOf, topN);
+    : input.ranking
+      ? namedPlayers(input.ranking, bios, topN)
+      : estimatedPlayers(bios, allResults, asOf, topN);
   const kept = new Set(players.map((p) => p.id));
 
-  const counting = events.filter((e) => e.start <= asOf && e.drops > asOf);
+  // An official list only includes events finished before it was published.
+  const counting = events.filter((e) => (official ? e.end < asOf : e.start <= asOf) && e.drops > asOf);
   const countingIds = new Set(counting.map((e) => e.id));
   const results: Result[] = [];
   for (const [playerId, list] of allResults) {
@@ -164,7 +179,7 @@ export function buildDataset(input: BuildInput): Dataset {
   return {
     meta: {
       source: input.source,
-      rankings: input.rankingsCsv ? "official" : "estimated",
+      rankings: official ? "official" : "estimated",
       rankingDate: asOf,
       latestMatchDate,
       generatedAt: input.generatedAt ?? new Date().toISOString(),
@@ -196,32 +211,33 @@ function officialPlayers(rankRows: Record<string, string>[], date: string, playe
   });
 }
 
-/**
- * Estimate today's ranking from match rows. Each row carries a player's official
- * points for that event's week; from his latest one we add what he has earned
- * since and take off what has dropped since.
- */
-function estimatedPlayers(
-  rows: Record<string, string>[],
-  results: Map<string, (Result & { event: Event })[]>,
-  asOf: string,
-  topN: number,
-): Player[] {
+interface Snapshot {
+  day: string;
+  points: number;
+  name: string;
+  ioc: string;
+  hand: string;
+  dob: string;
+}
+
+/** Each player's most recent row in the last year: his bio and his official points that week. */
+function snapshots(rows: Record<string, string>[], asOf: string): Map<string, Snapshot> {
   const cutoff = addDays(asOf, -364);
-  const snapshot = new Map<string, { day: string; points: number; name: string; ioc: string; hand: string; dob: string }>();
+  const out = new Map<string, Snapshot>();
   for (const m of rows) {
     const day = fromCompact(m.tourney_date);
     if (day > asOf || day < cutoff) continue;
     for (const side of ["winner", "loser"] as const) {
-      const pts = m[`${side}_rank_points`];
-      if (!pts) continue;
       const id = m[`${side}_id`];
-      const prev = snapshot.get(id);
-      if (prev && prev.day >= day) continue;
+      const prev = out.get(id);
+      const points = Number(m[`${side}_rank_points`] || NaN);
+      // Prefer the latest row that carries ranking points.
+      const better = !prev || (Number.isNaN(prev.points) ? !Number.isNaN(points) || day > prev.day : !Number.isNaN(points) && day > prev.day);
+      if (!better) continue;
       const age = Number(m[`${side}_age`]);
-      snapshot.set(id, {
+      out.set(id, {
         day,
-        points: Number(pts),
+        points,
         name: m[`${side}_name`],
         ioc: m[`${side}_ioc`],
         hand: m[`${side}_hand`],
@@ -229,8 +245,62 @@ function estimatedPlayers(
       });
     }
   }
+  return out;
+}
 
-  const estimates = [...snapshot].map(([id, s]) => {
+/** Fold accents, case and punctuation so "Felix Auger-Aliassime" and "Félix Auger Aliassime" match. */
+export function nameKey(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+}
+
+/** Attach an official list keyed by name to the players in the match data. */
+function namedPlayers(ranking: OfficialRanking, bios: Map<string, Snapshot>, topN: number): Player[] {
+  const byName = new Map<string, string>();
+  const byLastInitial = new Map<string, string | null>();
+  for (const [id, s] of bios) {
+    const key = nameKey(s.name);
+    byName.set(key, id);
+    const parts = key.split(" ");
+    const short = `${parts[0][0]} ${parts.slice(1).join(" ")}`;
+    byLastInitial.set(short, byLastInitial.has(short) ? null : id);
+  }
+  return ranking.entries
+    .filter((e) => e.rank <= topN)
+    .sort((a, b) => a.rank - b.rank)
+    .map((e) => {
+      const key = nameKey(e.name);
+      const parts = key.split(" ");
+      const id = byName.get(key) ?? byLastInitial.get(`${parts[0][0]} ${parts.slice(1).join(" ")}`) ?? null;
+      const bio = id ? bios.get(id) : undefined;
+      return {
+        id: id ?? `x-${key.replace(/ /g, "-")}`,
+        name: e.name,
+        country: bio?.ioc ?? "",
+        hand: bio?.hand ?? "",
+        dob: bio?.dob ?? "",
+        rank: e.rank,
+        points: e.points,
+      };
+    });
+}
+
+/**
+ * Estimate today's ranking from match rows. Each row carries a player's official
+ * points for that event's week; from his latest one we add what he has earned
+ * since and take off what has dropped since.
+ */
+function estimatedPlayers(
+  bios: Map<string, Snapshot>,
+  results: Map<string, (Result & { event: Event })[]>,
+  asOf: string,
+  topN: number,
+): Player[] {
+  const estimates = [...bios].filter(([, s]) => Number.isFinite(s.points)).map(([id, s]) => {
     // Rank points on a row are as of the Monday its event started.
     const mine = results.get(id) ?? [];
     const latestEvent = mine.filter((r) => r.event.start <= s.day).sort((a, b) => b.event.start.localeCompare(a.event.start))[0];

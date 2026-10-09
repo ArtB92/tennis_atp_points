@@ -103,3 +103,39 @@ describe("estimating the ranking from match rows", () => {
     expect(ana.dob.slice(0, 4)).toBe("2000");
   });
 });
+
+describe("with an official list keyed by name", () => {
+  const rows = [
+    H,
+    "2025-5014,Shanghai,Hard,96,M,20251012,1,A,Ana One,ESP,R,25.5,1,9000,B,Bén Two-Tone,ITA,L,24.1,2,8000,6-4 6-4,F",
+    // This year's Shanghai is still running on the list's date, so neither edition changes yet.
+    "2026-5014,Shanghai,Hard,96,M,20261002,1,A,Ana One,ESP,R,26.5,1,9500,C,Cal Three,FRA,R,21,40,1200,6-1 6-1,R64",
+  ].join("\n");
+  const ds = buildDataset({
+    matchesCsvs: [rows],
+    ranking: {
+      date: "2026-10-05",
+      entries: [
+        { rank: 2, points: 8800, name: "Ben Two Tone" },
+        { rank: 1, points: 9500, name: "Ana One" },
+        { rank: 3, points: 1000, name: "Zed Unknown" },
+      ],
+    },
+    source: "tennismylife",
+    generatedAt: "x",
+  });
+
+  it("uses the official points and matches names to players", () => {
+    expect(ds.meta.rankings).toBe("official");
+    expect(ds.players.map((p) => [p.rank, p.id, p.points, p.country])).toEqual([
+      [1, "A", 9500, "ESP"],
+      [2, "B", 8800, "ITA"],
+      [3, "x-zed-unknown", 1000, ""],
+    ]);
+  });
+
+  it("keeps last year's points until this year's edition ends", () => {
+    expect(ds.tournaments.map((t) => [t.id, t.drops])).toEqual([["2025-5014", "2026-10-12"]]);
+    expect(ds.results.filter((r) => r.playerId === "A").map((r) => r.points)).toEqual([1000]);
+  });
+});
