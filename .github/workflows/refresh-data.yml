@@ -5,6 +5,10 @@ on:
     # Daily; rankings are published on Mondays.
     - cron: "17 6 * * *"
   workflow_dispatch:
+  # Also on merges, so the demo data is replaced as soon as this lands.
+  push:
+    branches: [main]
+    paths-ignore: [data/atp.json]
 
 permissions:
   contents: write
