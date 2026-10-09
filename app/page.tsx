@@ -20,7 +20,8 @@ export default function RankingsPage() {
         <div className="pb-10 pt-6 sm:pb-14 sm:pt-10">
           <h1 className="display text-5xl font-bold sm:text-7xl">ATP rankings</h1>
           <p className="mt-3 max-w-xl text-on-court-2">
-            Singles, week of {formatDate(meta.rankingDate)}. The leader is {fmt.format(lead)} points clear.
+            Singles, {meta.rankings === "estimated" ? "live estimate for" : "as of"} {formatDate(meta.rankingDate)}. The
+            leader is {fmt.format(lead)} points clear.
           </p>
           <ol className="mt-10 grid gap-6 sm:grid-cols-3">
             {podium.map((p) => (

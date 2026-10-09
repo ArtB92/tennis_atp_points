@@ -16,7 +16,7 @@ export function daysBetween(fromISO: string, toISO_: string): number {
   return Math.round((parseISO(toISO_).getTime() - parseISO(fromISO).getTime()) / DAY);
 }
 
-/** Sackmann dates are yyyymmdd. */
+/** Source files write dates as yyyymmdd. */
 export function fromCompact(yyyymmdd: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }

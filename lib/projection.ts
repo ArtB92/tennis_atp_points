@@ -1,4 +1,4 @@
-import { dropDate, nextEdition } from "./build";
+import { nextEdition } from "./build";
 import { addDays } from "./dates";
 import type { Dataset, Player, Result, Tournament } from "./types";
 
@@ -37,7 +37,7 @@ function floorAt(player: Player, results: Result[], tById: Map<string, Tournamen
   let dropped = 0;
   for (const r of results) {
     const t = tById.get(r.tournamentId);
-    if (t && dropDate(t) <= date) dropped += r.points;
+    if (t && t.drops <= date) dropped += r.points;
   }
   return Math.max(0, player.points - dropped);
 }
@@ -60,7 +60,7 @@ export function computeProjection(ds: Dataset, playerId: string, weeks = 52): Pr
   const entries: DefenceEntry[] = ds.tournaments
     .map((t) => {
       const result = mineByT.get(t.id) ?? null;
-      return { tournament: t, result, points: result?.points ?? 0, nextStart: nextEdition(t), drops: dropDate(t) };
+      return { tournament: t, result, points: result?.points ?? 0, nextStart: nextEdition(t), drops: t.drops };
     })
     .filter((e) => e.drops > asOf)
     .sort((a, b) => a.drops.localeCompare(b.drops) || a.tournament.name.localeCompare(b.tournament.name));

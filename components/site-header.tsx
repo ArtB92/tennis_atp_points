@@ -39,7 +39,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
             <Link href="/projection" className="hover:text-on-court">
               Projection
             </Link>
-            <span className="hidden text-on-court-2/80 sm:inline">Week of {formatDate(meta.rankingDate)}</span>
+            <span className="hidden text-on-court-2/80 sm:inline">{formatDate(meta.rankingDate)}</span>
           </div>
         </nav>
         {children}
@@ -69,23 +69,28 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-rule">
       <div className="mx-auto max-w-6xl space-y-2 px-4 py-8 text-sm text-ink-3 sm:px-6">
         <p>
-          Rankings as of {formatDate(meta.rankingDate)}. Latest results from the event starting{" "}
-          {formatDate(meta.latestEventDate)}.
-          {meta.source === "sackmann" && (
+          Rankings for {formatDate(meta.rankingDate)}. Latest match in the data: {formatDate(meta.latestMatchDate)}.
+          {meta.source === "tennismylife" && (
             <>
               {" "}
-              Data from{" "}
-              <a className="underline hover:text-ink" href="https://github.com/JeffSackmann/tennis_atp">
-                Jeff Sackmann&rsquo;s tennis_atp
-              </a>{" "}
-              (CC BY-NC-SA 4.0).
+              Match data from the{" "}
+              <a className="underline hover:text-ink" href="https://stats.tennismylife.org/tennis-match-database">
+                TennisMyLife database
+              </a>
+              .
             </>
           )}
         </p>
+        {meta.rankings === "estimated" && (
+          <p>
+            Rankings are a live estimate: each player&rsquo;s official points at his latest event, plus what he has
+            earned since and minus what has dropped since. Challenger points earned since then aren&rsquo;t included.
+          </p>
+        )}
         <p>
           Points per event are worked out from the round reached and the ATP points table. Grand Slams, Masters 1000,
-          ATP 500, ATP 250 and the ATP Finals are tracked; the rest of each official total (mostly Challengers) is shown
-          as &ldquo;other&rdquo;. Drop dates are estimates: the Monday after next year&rsquo;s edition ends.
+          ATP 500, ATP 250 and the ATP Finals are tracked; the rest of each total (mostly Challengers) is shown as
+          &ldquo;other&rdquo;. Drop dates are estimates: the Monday after next year&rsquo;s edition ends.
         </p>
       </div>
     </footer>

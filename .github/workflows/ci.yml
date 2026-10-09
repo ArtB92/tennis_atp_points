@@ -34,3 +34,7 @@ jobs:
         env:
           ATP_DATA_BASE_URL: ${{ vars.ATP_DATA_BASE_URL }}
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atp-data
+          path: data/atp.json

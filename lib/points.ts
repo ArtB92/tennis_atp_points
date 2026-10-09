@@ -26,14 +26,22 @@ const ATP_500: { match: string; from: number }[] = [
   { match: "dallas", from: 2026 },
 ];
 
-/** Events Sackmann lists that award no ATP ranking points. */
+/** Events the source files list that award no ATP ranking points. */
 const NO_POINTS = ["next gen", "nextgen", "united cup", "laver cup", "davis cup", "olympics"];
 
-/** Map a Sackmann tourney_level + name to our level, or null for events that award no points. */
-export function classifyLevel(sackmannLevel: string, name: string, year: number): Level | null {
+/**
+ * Map a source tourney_level + name to our level, or null for events that award
+ * no points. TennisMyLife codes 500s and 250s directly; Sackmann-style files
+ * label both "A".
+ */
+export function classifyLevel(sourceLevel: string, name: string, year: number): Level | null {
   const lower = name.toLowerCase();
   if (NO_POINTS.some((n) => lower.includes(n))) return null;
-  switch (sackmannLevel) {
+  switch (sourceLevel) {
+    case "500":
+      return "500";
+    case "250":
+      return "250";
     case "G":
       return "G";
     case "M":

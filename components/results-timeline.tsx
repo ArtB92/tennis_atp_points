@@ -12,7 +12,7 @@ export interface TimelineEvent {
   name: string;
   level: Level;
   start: string;
-  weeks: number;
+  end: string;
   points: number;
   finish: Finish;
 }
@@ -69,7 +69,7 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
           ) : null,
         )}
         {events.map((e) => {
-          const cx = x(addDays(e.start, e.weeks * 3.5));
+          const cx = x(addDays(e.start, daysBetween(e.start, e.end) / 2));
           const top = y(Math.max(e.points, yMax * 0.012));
           const h = PAD.top + innerH - top;
           const r = Math.min(4, h / 2, barW / 2);

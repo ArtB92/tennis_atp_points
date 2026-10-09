@@ -79,7 +79,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                 name: r.tournament.name,
                 level: r.tournament.level,
                 start: r.tournament.start,
-                weeks: r.tournament.weeks,
+                end: r.tournament.end,
                 points: r.points,
                 finish: r.finish,
               }))}

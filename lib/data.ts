@@ -1,5 +1,4 @@
 import raw from "@/data/atp.json";
-import { dropDate } from "./build";
 import { ageOn } from "./dates";
 import type { Dataset, Level, Player, Result, Tournament } from "./types";
 
@@ -32,7 +31,7 @@ export function resultsFor(playerId: string): PlayedEvent[] {
   return (resultsByPlayer.get(playerId) ?? [])
     .map((r) => {
       const tournament = tournamentsById.get(r.tournamentId)!;
-      return { ...r, tournament, drops: dropDate(tournament) };
+      return { ...r, tournament, drops: tournament.drops };
     })
     .sort((a, b) => b.tournament.start.localeCompare(a.tournament.start));
 }

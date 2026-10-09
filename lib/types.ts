@@ -13,7 +13,7 @@ export interface Player {
   /** ISO date (yyyy-mm-dd) or empty when unknown. */
   dob: string;
   rank: number;
-  /** Official ATP ranking points at the ranking date. */
+  /** ATP ranking points at the ranking date (official or estimated, see DatasetMeta.rankings). */
   points: number;
 }
 
@@ -25,8 +25,10 @@ export interface Tournament {
   drawSize: number;
   /** Monday the event starts, ISO date. */
   start: string;
-  /** Length of the event in weeks (1 or 2). */
-  weeks: number;
+  /** Last day of the event, ISO date. */
+  end: string;
+  /** Date these results stop counting, ISO date. */
+  drops: string;
 }
 
 export interface Match {
@@ -47,11 +49,16 @@ export interface Result {
 }
 
 export interface DatasetMeta {
-  source: "sackmann" | "demo";
-  /** Monday of the ranking list the dataset uses, ISO date. */
+  source: "tennismylife" | "demo";
+  /**
+   * "official": an ATP ranking list was supplied. "estimated": each player's
+   * official points at his latest event, updated with results since.
+   */
+  rankings: "official" | "estimated";
+  /** Date the rankings and projections are calculated for, ISO date. */
   rankingDate: string;
-  /** Start date of the most recent event with results, ISO date. */
-  latestEventDate: string;
+  /** Date of the most recent match in the data, ISO date. */
+  latestMatchDate: string;
   generatedAt: string;
 }
 

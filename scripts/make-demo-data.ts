@@ -1,6 +1,6 @@
 /**
  * Generate a demo dataset with fictional players, so the app runs without
- * network access. It writes the same CSV shapes as Sackmann's files and feeds
+ * network access. It writes Sackmann-style CSVs (with an official ranking list) and feeds
  * them through the real pipeline. Run with `npm run demo-data`.
  */
 import { writeFile } from "node:fs/promises";
@@ -63,7 +63,7 @@ const players: DemoPlayer[] = Array.from({ length: 300 }, (_, i) => {
   };
 });
 
-// [name, Sackmann level, draw size, start yyyymmdd, surface]
+// [name, source level, draw size, start yyyymmdd, surface]
 type Ev = [string, string, number, string, string];
 const CALENDAR: Ev[] = [
   ["Shanghai Masters", "M", 96, "20250929", "Hard"],
