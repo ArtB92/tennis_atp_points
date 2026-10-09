@@ -15,7 +15,7 @@ export default function CalendarPage() {
     drawSize: t.drawSize,
     nextStart,
     nextEnd,
-    inProgress: nextStart <= asOf,
+    status: nextEnd < asOf ? "played" : nextStart <= asOf ? "now" : "upcoming",
     champion: champion && { name: champion.name, country: champion.country },
     runnerUp: runnerUp && { name: runnerUp.name, country: runnerUp.country },
   }));

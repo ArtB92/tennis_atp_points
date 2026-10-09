@@ -17,7 +17,8 @@ export interface CalendarRow {
   drawSize: number;
   nextStart: string;
   nextEnd: string;
-  inProgress: boolean;
+  /** Where this year's edition stands on the ranking date. */
+  status: "upcoming" | "now" | "played";
   champion: { name: string; country: string } | null;
   runnerUp: { name: string; country: string } | null;
 }
@@ -111,9 +112,13 @@ export function CalendarList({ rows }: { rows: CalendarRow[] }) {
                     )}
                   </div>
                   <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:block sm:text-right">
-                    {r.inProgress && (
-                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent sm:mb-1 sm:inline-block">
-                        This week
+                    {r.status !== "upcoming" && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold sm:mb-1 sm:inline-block ${
+                          r.status === "now" ? "bg-accent/15 text-accent" : "bg-sunken text-ink-3"
+                        }`}
+                      >
+                        {r.status === "now" ? "Under way" : "Just played"}
                       </span>
                     )}
                     <p className="num font-medium text-ink">
