@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bracket } from "@/components/bracket";
+import { BracketTree } from "@/components/bracket-tree";
 import { Flag } from "@/components/flag";
 import { LEVEL_COLOR } from "@/components/level";
 import { SiteHeader } from "@/components/site-header";
 import { TournamentBadge } from "@/components/tournament-badge";
+import { ViewToggle } from "@/components/view-toggle";
 import { getDataset, getDraw, getPlayer, getTournament } from "@/lib/data";
 import { addDays, formatDate, formatShortDate } from "@/lib/dates";
 import { bracket } from "@/lib/draw";
@@ -53,6 +55,30 @@ export default async function TournamentPage({ params }: PageProps<"/calendar/[i
     ) : (
       e.name
     );
+
+  const pointsList = (
+    <div className="overflow-hidden rounded-xl border border-rule bg-raised">
+      {groups.map((g) => (
+        <div key={g.finish} className="grid gap-x-6 gap-y-2 border-b border-rule/70 px-4 py-3 last:border-0 sm:grid-cols-[10rem_1fr]">
+          <p className="flex items-baseline justify-between gap-3 sm:block">
+            <span className="font-semibold text-ink">{FINISH_LABEL[g.finish]}</span>
+            <span className="num block text-sm text-drop sm:mt-0.5">
+              {g.finish === "RR" ? "varies" : `${fmt.format(roundPoints[g.finish])} pts`}
+            </span>
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+            {g.players.map((e) => (
+              <li key={e.id} className="inline-flex items-center gap-1.5 text-ink-2">
+                <Flag country={e.country} className="text-[12px]" />
+                <span className={ranked.includes(e.id) ? "text-ink" : undefined}>{name(e)}</span>
+                {g.finish === "RR" && <span className="num text-xs text-ink-3">{e.points}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -124,27 +150,15 @@ export default async function TournamentPage({ params }: PageProps<"/calendar/[i
                 Points awarded
               </h2>
               <p className="mb-5 text-sm text-ink-2">Ranking points each player earned here; they count until {formatDate(t.drops)}.</p>
-              <div className="overflow-hidden rounded-xl border border-rule bg-raised">
-                {groups.map((g) => (
-                  <div key={g.finish} className="grid gap-x-6 gap-y-2 border-b border-rule/70 px-4 py-3 last:border-0 sm:grid-cols-[10rem_1fr]">
-                    <p className="flex items-baseline justify-between gap-3 sm:block">
-                      <span className="font-semibold text-ink">{FINISH_LABEL[g.finish]}</span>
-                      <span className="num block text-sm text-drop sm:mt-0.5">
-                        {g.finish === "RR" ? "varies" : `${fmt.format(roundPoints[g.finish])} pts`}
-                      </span>
-                    </p>
-                    <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
-                      {g.players.map((e) => (
-                        <li key={e.id} className="inline-flex items-center gap-1.5 text-ink-2">
-                          <Flag country={e.country} className="text-[12px]" />
-                          <span className={ranked.includes(e.id) ? "text-ink" : undefined}>{name(e)}</span>
-                          {g.finish === "RR" && <span className="num text-xs text-ink-3">{e.points}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              <ViewToggle
+                label="Points view"
+                views={[
+                  { key: "list", label: "By round", content: pointsList },
+                  ...(rounds.length >= 2
+                    ? [{ key: "tree", label: "Bracket", content: <BracketTree rounds={rounds} entrants={entrants} ranked={ranked} /> }]
+                    : []),
+                ]}
+              />
             </section>
           </>
         )}
