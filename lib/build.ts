@@ -1,7 +1,7 @@
 import { parseCSV } from "./csv";
 import { addDays, fromCompact, mondayOf, toISO } from "./dates";
-import { classifyLevel, pointsForEvent, ROUND_ORDER } from "./points";
-import type { Dataset, Level, Match, Player, Result, Round, Tournament } from "./types";
+import { classifyEvent, pointsForEvent, ROUND_ORDER } from "./points";
+import type { Dataset, Draw, DrawEntrant, Level, Match, Player, Result, Round, Tournament } from "./types";
 
 const KNOWN_ROUNDS = new Set<string>([...ROUND_ORDER, "RR"]);
 
@@ -97,13 +97,14 @@ export function buildDataset(input: BuildInput): Dataset {
     const days = rows.map((r) => fromCompact(r.tourney_date)).sort();
     const first = rows[0];
     const year = Number(days[0].slice(0, 4));
-    const level = classifyLevel(first.tourney_level, first.tourney_name, year);
-    if (!level) continue;
+    const kind = classifyEvent(id, first.tourney_level, first.tourney_name, year);
+    if (!kind) continue;
+    const { level, name } = kind;
     const drawSize = Math.max(...rows.map((r) => Number(r.draw_size) || 0)) || 32;
     // Events that start on a Sunday (or mid-week) belong to the following/current ATP week.
     const start = mondayOf(addDays(days[0], 1));
     const end = [days[days.length - 1], addDays(start, 7 * eventWeeks(level, drawSize) - 1)].sort().pop()!;
-    events.push({ id, name: first.tourney_name, level, surface: first.surface, drawSize, start, end, drops: estimatedDrop(end), officialDrop: estimatedDrop(end), year, rows });
+    events.push({ id, name, level, surface: first.surface, drawSize, start, end, drops: estimatedDrop(end), officialDrop: estimatedDrop(end), year, rows });
   }
 
   // Points drop the Monday after next year's edition ends. For an estimated live
@@ -172,6 +173,39 @@ export function buildDataset(input: BuildInput): Dataset {
     for (const { event, ...r } of list) if (countingIds.has(event.id)) results.push(r);
   }
 
+  // Full draws of the counting editions, for every entrant (not only ranked players).
+  const eventResults = new Map<string, Map<string, Result>>();
+  for (const list of allResults.values()) {
+    for (const { event, ...r } of list) {
+      if (!countingIds.has(event.id)) continue;
+      const byPlayer = eventResults.get(event.id) ?? new Map<string, Result>();
+      byPlayer.set(r.playerId, r);
+      eventResults.set(event.id, byPlayer);
+    }
+  }
+  const draws: Draw[] = counting.map((e) => {
+    const entrants = new Map<string, DrawEntrant>();
+    const matches: Draw["matches"] = [];
+    for (const m of e.rows) {
+      if (!KNOWN_ROUNDS.has(m.round) || fromCompact(m.tourney_date) > asOf) continue;
+      matches.push({ round: m.round as Round, winnerId: m.winner_id, loserId: m.loser_id, score: m.score });
+      for (const side of ["winner", "loser"] as const) {
+        const id = m[`${side}_id`];
+        const r = eventResults.get(e.id)?.get(id);
+        if (entrants.has(id) || !r) continue;
+        entrants.set(id, {
+          id,
+          name: m[`${side}_name`],
+          country: m[`${side}_ioc`] ?? "",
+          seed: [m[`${side}_seed`], m[`${side}_entry`]].filter(Boolean).join(" "),
+          finish: r.finish,
+          points: r.points,
+        });
+      }
+    }
+    return { tournamentId: e.id, entrants: [...entrants.values()].sort((a, b) => b.points - a.points), matches };
+  });
+
   const tournaments: Tournament[] = counting
     .map(({ id, name, level, surface, drawSize, start, end, drops }): Tournament => ({ id, name, level, surface, drawSize, start, end, drops }))
     .sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
@@ -187,6 +221,7 @@ export function buildDataset(input: BuildInput): Dataset {
     players,
     tournaments,
     results,
+    draws,
   };
 }
 

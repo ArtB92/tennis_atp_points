@@ -55,6 +55,36 @@ export function classifyLevel(sourceLevel: string, name: string, year: number): 
   }
 }
 
+/** Masters 1000 events by the tourney id's number (the part after the year), with the city each is named after. */
+const MASTERS: Record<string, string> = {
+  "404": "Indian Wells",
+  "403": "Miami",
+  "410": "Monte Carlo",
+  "1536": "Madrid",
+  "416": "Rome",
+  "421": "Canada",
+  "422": "Cincinnati",
+  "5014": "Shanghai",
+  "352": "Paris",
+};
+
+/**
+ * Level and display name for an event. The source files occasionally mislabel
+ * events (a Masters named after another city, a 250 tagged as a Masters), so
+ * Masters status follows the tourney id, which is stable across seasons.
+ */
+export function classifyEvent(id: string, sourceLevel: string, name: string, year: number): { level: Level; name: string } | null {
+  const city = MASTERS[id.replace(/^\d{4}-/, "")];
+  if (city) {
+    const named = name.toLowerCase().includes(city.toLowerCase()) || (city === "Canada" && /toronto|montreal/i.test(name));
+    return { level: "M", name: named ? name : `${city} Masters` };
+  }
+  // Trust a Masters tag only when the name looks like one.
+  const looksMasters = /masters/i.test(name) || Object.values(MASTERS).some((c) => name.toLowerCase().includes(c.toLowerCase()));
+  const level = classifyLevel(sourceLevel === "M" && !looksMasters ? "A" : sourceLevel, name, year);
+  return level ? { level, name } : null;
+}
+
 type Table = Partial<Record<Finish, number>>;
 
 const TABLES: Record<Exclude<Level, "F">, Table> = {

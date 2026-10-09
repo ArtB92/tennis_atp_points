@@ -48,6 +48,32 @@ export interface Result {
   matches: Match[];
 }
 
+/** One match of a tournament draw. */
+export interface DrawMatch {
+  round: Round;
+  winnerId: string;
+  loserId: string;
+  score: string;
+}
+
+/** A player in a tournament draw, with how far he went and the points he earned. */
+export interface DrawEntrant {
+  id: string;
+  name: string;
+  country: string;
+  /** Seed or entry tag (Q, WC, LL) when the source has one. */
+  seed: string;
+  finish: Finish;
+  points: number;
+}
+
+/** Every match and entrant of one counting edition of a tournament. */
+export interface Draw {
+  tournamentId: string;
+  entrants: DrawEntrant[];
+  matches: DrawMatch[];
+}
+
 export interface DatasetMeta {
   source: "tennismylife" | "demo";
   /**
@@ -67,4 +93,5 @@ export interface Dataset {
   players: Player[];
   tournaments: Tournament[];
   results: Result[];
+  draws: Draw[];
 }

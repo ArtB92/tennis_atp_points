@@ -139,3 +139,25 @@ describe("with an official list keyed by name", () => {
     expect(ds.results.filter((r) => r.playerId === "A").map((r) => r.points)).toEqual([1000]);
   });
 });
+
+describe("tournament draws", () => {
+  const rows = [
+    H,
+    "2025-339,Brisbane,Hard,32,A,20250105,1,A,Ana One,ESP,R,25,1,9000,B,Ben Two,ITA,L,24,2,8000,6-4 6-4,F",
+    "2025-339,Brisbane,Hard,32,A,20250104,2,A,Ana One,ESP,R,25,1,9000,C,Cal Three,FRA,R,21,40,1200,6-1 6-1,SF",
+  ].join("\n");
+  const ds = buildDataset({ matchesCsvs: [rows], source: "tennismylife", asOf: "2025-03-01", generatedAt: "x" });
+
+  it("keeps every match and entrant with the points each earned", () => {
+    const draw = ds.draws.find((d) => d.tournamentId === "2025-339")!;
+    expect(draw.matches.map((m) => [m.round, m.winnerId, m.loserId])).toEqual([
+      ["F", "A", "B"],
+      ["SF", "A", "C"],
+    ]);
+    expect(draw.entrants.map((e) => [e.id, e.country, e.finish, e.points])).toEqual([
+      ["A", "ESP", "W", 250],
+      ["B", "ITA", "F", 165],
+      ["C", "FRA", "SF", 100],
+    ]);
+  });
+});

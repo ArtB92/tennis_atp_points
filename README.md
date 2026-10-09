@@ -5,6 +5,7 @@ A dashboard for the men's ATP singles ranking:
 - **Rankings**: the current list, where the top 20 earned their points, and each player's next points to drop.
 - **Player pages**: every counting result from the last 52 weeks, with the match-by-match path through each draw.
 - **Points to defend**: for any player, the events in the next 52 weeks where last year's points come off his total, when they drop, and a chart of his points "floor" (what he keeps if he earns nothing more) with the rank it would give.
+- **Calendar**: the tour-level events of the next 52 weeks (dated from last year's edition), each with last year's full draw and the points every player took home.
 
 Built with Next.js, TypeScript and Tailwind CSS. Every page is generated statically from `data/atp.json`.
 

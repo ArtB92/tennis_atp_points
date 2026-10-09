@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyLevel, finishFrom, pointsForEvent } from "./points";
+import { classifyEvent, classifyLevel, finishFrom, pointsForEvent } from "./points";
 
 describe("classifyLevel", () => {
   it("separates 500s from 250s by name and season", () => {
@@ -59,5 +59,14 @@ describe("pointsForEvent", () => {
 describe("finishFrom", () => {
   it("credits the deepest round for a player still alive", () => {
     expect(finishFrom([{ round: "R32", won: true }, { round: "R16", won: true }])).toBe("R16");
+  });
+});
+
+describe("classifyEvent", () => {
+  it("takes Masters status from the tourney id", () => {
+    expect(classifyEvent("2026-416", "500", "Munich", 2026)).toEqual({ level: "M", name: "Rome Masters" });
+    expect(classifyEvent("2026-404", "M", "Indian Wells Masters", 2026)).toEqual({ level: "M", name: "Indian Wells Masters" });
+    expect(classifyEvent("2026-6242", "M", "Winston-Salem", 2026)).toEqual({ level: "250", name: "Winston-Salem" });
+    expect(classifyEvent("2026-308", "500", "Munich", 2026)).toEqual({ level: "500", name: "Munich" });
   });
 });

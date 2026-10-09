@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "./logo";
 
 const LINKS = [
   { href: "/", label: "Rankings", current: (p: string) => p === "/" },
   { href: "/projection", label: "Projection", current: (p: string) => p === "/projection" || p.endsWith("/projection") },
+  { href: "/calendar", label: "Calendar", current: (p: string) => p.startsWith("/calendar") },
 ];
 
 export function SiteNav({ date }: { date: string }) {
@@ -15,12 +17,8 @@ export function SiteNav({ date }: { date: string }) {
       aria-label="Main"
       className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/[0.07] p-2 shadow-[0_8px_30px_rgb(0_0_0/0.25)] backdrop-blur-md"
     >
-      <Link href="/" className="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-white/10">
-        <svg aria-hidden viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="9.5" />
-          <path d="M4.5 6.5c3 2 4.5 5 4.5 8.5M19.5 17.5c-3-2-4.5-5-4.5-8.5" />
-        </svg>
-        <span className="display text-2xl font-bold tracking-tight">Homepage</span>
+      <Link href="/" aria-label="Tennis ATP Points: back to the rankings" className="rounded-xl px-3 py-1.5 transition-colors hover:bg-white/10">
+        <Logo />
       </Link>
       <div className="flex items-center gap-1.5">
         {LINKS.map((l) => {
