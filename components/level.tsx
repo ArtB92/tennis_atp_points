@@ -50,3 +50,16 @@ export function LevelLegend({ withOther = false }: { withOther?: boolean }) {
     </ul>
   );
 }
+
+/** Key for the ranking table's "next points to drop" column. */
+export function DropLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-2">
+      <span className="text-ink-3">Next drop:</span>
+      <LevelLegend />
+      <span className="inline-flex items-center gap-1.5">
+        <span className="num font-semibold text-drop">−500</span> points coming off
+      </span>
+    </div>
+  );
+}

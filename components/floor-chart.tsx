@@ -13,7 +13,7 @@ export interface FloorStep {
 }
 
 const fmt = new Intl.NumberFormat("en-US");
-const H = 300;
+const H = 420;
 const PAD = { top: 20, right: 92, bottom: 30, left: 52 };
 
 function niceStep(max: number) {
@@ -39,6 +39,7 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
   const step = niceStep(steps[0].floor || 1);
   const yMax = Math.ceil((steps[0].floor || 1) / step) * step;
   const y = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
+  const barW = Math.max(6, Math.min(18, (innerW * 7) / span - 2));
   const ticks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, i) => i * step);
 
   let line = `M${x(steps[0].date)},${y(steps[0].floor)}`;
@@ -93,13 +94,22 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
         )}
         <path d={area} fill="var(--accent)" opacity="0.1" />
         <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Each drop as a bar spanning the points lost that week. */}
         {steps.map((s, i) =>
-          s.drops.length > 0 ? (
-            <circle key={s.date} cx={x(s.date)} cy={y(s.floor)} r="4" fill="var(--drop)" stroke="var(--surface)" strokeWidth="2" opacity={hover === null || hover === i ? 1 : 0.6} />
+          i > 0 && s.drops.length > 0 ? (
+            <rect
+              key={s.date}
+              x={x(s.date) - barW / 2}
+              y={y(steps[i - 1].floor)}
+              width={barW}
+              height={Math.max(2, y(s.floor) - y(steps[i - 1].floor))}
+              rx={Math.min(3, barW / 3)}
+              fill="var(--drop)"
+              opacity={hover === null || hover === i ? 1 : 0.4}
+            />
           ) : null,
         )}
         {/* End label: where he lands with no new points. */}
-        <circle cx={x(last.date)} cy={y(last.floor)} r="4" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
         <text x={x(last.date) + 10} y={y(last.floor)} dy="-0.2em" className="num fill-[var(--ink)] text-[13px] font-semibold">
           {fmt.format(last.floor)}
         </text>

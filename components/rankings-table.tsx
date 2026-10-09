@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { RankingRow } from "@/lib/data";
 import { formatShortDate } from "@/lib/dates";
+import { Flag } from "./flag";
 import { LevelDot } from "./level";
 
 const fmt = new Intl.NumberFormat("en-US");
@@ -56,10 +57,12 @@ export function RankingsTable({ rows }: { rows: RankingRow[] }) {
               <tr key={r.id} className="group border-b border-rule/70 hover:bg-raised">
                 <td className="num py-2.5 pl-4 pr-2 text-right font-display text-lg font-semibold text-ink-2 sm:pl-0">{r.rank}</td>
                 <td className="px-3 py-2.5">
-                  <Link href={`/players/${r.id}`} className="font-medium text-ink group-hover:text-accent">
-                    {r.name}
-                  </Link>
-                  <span className="ml-2 text-xs text-ink-3">{r.country}</span>
+                  <span className="flex items-center gap-2.5">
+                    <Flag country={r.country} />
+                    <Link href={`/players/${r.id}`} className="font-medium text-ink group-hover:text-accent">
+                      {r.name}
+                    </Link>
+                  </span>
                 </td>
                 <td className="num px-3 py-2.5 text-ink-2">{r.age ?? "–"}</td>
                 <td className="num px-3 py-2.5 text-right font-semibold text-ink">{fmt.format(r.points)}</td>

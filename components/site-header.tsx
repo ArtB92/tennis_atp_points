@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { getDataset } from "@/lib/data";
 import { formatDate } from "@/lib/dates";
+import { SiteNav } from "./site-nav";
 
 /** Court lines drawn behind the header: baseline, service line and centre mark of a half court. */
 function CourtLines() {
@@ -28,20 +28,9 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
     <header className="relative overflow-hidden bg-court text-on-court">
       <CourtLines />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-        <nav className="flex items-center justify-between gap-4 py-4 text-sm">
-          <Link href="/" className="display text-2xl font-bold tracking-tight">
-            Baseline
-          </Link>
-          <div className="flex items-center gap-5 text-on-court-2">
-            <Link href="/" className="hover:text-on-court">
-              Rankings
-            </Link>
-            <Link href="/projection" className="hover:text-on-court">
-              Projection
-            </Link>
-            <span className="hidden text-on-court-2/80 sm:inline">{formatDate(meta.rankingDate)}</span>
-          </div>
-        </nav>
+        <div className="pt-4">
+          <SiteNav date={formatDate(meta.rankingDate)} />
+        </div>
         {children}
       </div>
     </header>

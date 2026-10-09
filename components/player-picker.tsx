@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Flag } from "./flag";
 
 export interface PickerRow {
   id: string;
@@ -54,7 +55,8 @@ export function PlayerPicker({ rows }: { rows: PickerRow[] }) {
             >
               <span className="num display text-right text-lg font-semibold text-ink-2">{r.rank}</span>
               <span className="truncate font-medium text-ink">
-                {r.name} <span className="ml-1 text-xs font-normal text-ink-3">{r.country}</span>
+                <Flag country={r.country} className="mr-2 text-[13px] align-[-1px]" />
+                {r.name}
               </span>
               <span className="num w-24 text-right font-semibold text-drop">{fmt.format(r.defendSoon)}</span>
               <span className="num w-24 text-right text-ink-2">{fmt.format(r.defendYear)}</span>

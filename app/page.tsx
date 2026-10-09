@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { LevelLegend } from "@/components/level";
+import { Flag } from "@/components/flag";
+import { DropLegend, LevelLegend } from "@/components/level";
 import { PointsLadder } from "@/components/points-ladder";
 import { RankingsTable } from "@/components/rankings-table";
 import { SiteHeader } from "@/components/site-header";
@@ -29,7 +30,10 @@ export default function RankingsPage() {
                 <Link href={`/players/${p.id}`} className="group flex items-end gap-4">
                   <span className="display num text-[5.5rem] font-bold text-on-court/90 sm:text-[7rem]">{p.rank}</span>
                   <span className="pb-3">
-                    <span className="block text-lg font-semibold leading-tight group-hover:underline">{p.name}</span>
+                    <span className="flex items-center gap-2 text-lg font-semibold leading-tight">
+                      <Flag country={p.country} className="text-[16px]" />
+                      <span className="group-hover:underline">{p.name}</span>
+                    </span>
                     <span className="num block text-on-court-2">{fmt.format(p.points)} points</span>
                   </span>
                 </Link>
@@ -54,9 +58,12 @@ export default function RankingsPage() {
         </section>
 
         <section className="mt-16" aria-labelledby="all">
-          <h2 id="all" className="display mb-5 text-3xl font-semibold">
-            Full ranking
-          </h2>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+            <h2 id="all" className="display text-3xl font-semibold">
+              Full ranking
+            </h2>
+            <DropLegend />
+          </div>
           <RankingsTable rows={rows} />
         </section>
       </main>

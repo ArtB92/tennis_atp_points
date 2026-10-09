@@ -1,4 +1,4 @@
-# Baseline: ATP points tracker
+# ATP points tracker
 
 A dashboard for the men's ATP singles ranking:
 

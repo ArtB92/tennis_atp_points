@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Flag } from "@/components/flag";
 import { PlayerTabs } from "@/components/player-tabs";
 import { SiteHeader } from "@/components/site-header";
 import { getDataset, getPlayer } from "@/lib/data";
@@ -28,7 +29,10 @@ export default async function PlayerLayout({ children, params }: LayoutProps<"/p
           </p>
           <div className="pb-2 sm:pb-4">
             <h1 className="display text-4xl font-bold sm:text-6xl">{player.name}</h1>
-            <p className="mt-2 text-on-court-2">{facts.join(", ")}</p>
+            <p className="mt-2 flex items-center gap-2.5 text-on-court-2">
+              <Flag country={player.country} className="text-[18px]" />
+              {facts.join(", ")}
+            </p>
           </div>
           <p className="pb-2 sm:ml-auto sm:pb-4 sm:text-right">
             <span className="display num block text-4xl font-semibold sm:text-5xl">{fmt.format(player.points)}</span>
