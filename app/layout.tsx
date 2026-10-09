@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { DataNotice, SiteFooter } from "@/components/site-header";
 import "flag-icons/css/flag-icons.min.css";
 import "./globals.css";
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DataNotice />
         {children}
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   );
