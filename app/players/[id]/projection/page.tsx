@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DefenceList, type DefenceRow } from "@/components/defence-list";
 import { FloorChart, type FloorStep } from "@/components/floor-chart";
+import { LevelLegend } from "@/components/level";
 import { getDataset, getPlayer } from "@/lib/data";
 import { addDays, formatDate } from "@/lib/dates";
 import { computeProjection } from "@/lib/projection";
@@ -25,7 +26,7 @@ export default async function ProjectionPage({ params }: PageProps<"/players/[id
     const prev = i === 0 ? addDays(f.date, -7) : floor[i - 1].date;
     const drops = entries
       .filter((e) => e.points > 0 && e.drops > prev && e.drops <= f.date)
-      .map((e) => ({ name: e.tournament.name, points: e.points }));
+      .map((e) => ({ name: e.tournament.name, points: e.points, level: e.tournament.level }));
     return { ...f, drops };
   });
 
@@ -74,6 +75,14 @@ export default async function ProjectionPage({ params }: PageProps<"/players/[id
         </p>
         <div className="mt-6">
           <FloorChart steps={steps} />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-ink-2">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="inline-block h-0.5 w-4 rounded bg-accent" />
+            Points floor (left axis)
+          </span>
+          <span className="text-ink-3">Points dropping that week (right axis):</span>
+          <LevelLegend />
         </div>
       </section>
 

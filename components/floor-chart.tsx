@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { addDays, daysBetween, formatMonth, formatShortDate } from "@/lib/dates";
+import type { Level } from "@/lib/types";
+import { LEVEL_COLOR, LevelDot } from "./level";
 import { useWidth } from "./use-width";
 
 export interface FloorStep {
@@ -9,12 +11,12 @@ export interface FloorStep {
   floor: number;
   rank: number;
   /** Events whose points come off in the week starting at `date`. */
-  drops: { name: string; points: number }[];
+  drops: { name: string; points: number; level: Level }[];
 }
 
 const fmt = new Intl.NumberFormat("en-US");
 const H = 420;
-const PAD = { top: 20, right: 92, bottom: 30, left: 52 };
+const PAD = { top: 28, right: 56, bottom: 30, left: 52 };
 
 function niceStep(max: number) {
   const raw = max / 4;
@@ -39,8 +41,15 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
   const step = niceStep(steps[0].floor || 1);
   const yMax = Math.ceil((steps[0].floor || 1) / step) * step;
   const y = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
-  const barW = Math.max(6, Math.min(18, (innerW * 7) / span - 2));
   const ticks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, i) => i * step);
+
+  // Right axis: points dropping each week, drawn as bars from zero in the lower half of the chart.
+  const weekDrop = (s: FloorStep) => s.drops.reduce((t, d) => t + d.points, 0);
+  const dStep = niceStep(Math.max(...steps.map(weekDrop), 1) / 2);
+  const dMax = Math.ceil(Math.max(...steps.map(weekDrop), 1) / dStep) * dStep;
+  const yd = (v: number) => PAD.top + innerH - (v / (dMax * 2)) * innerH;
+  const dTicks = Array.from({ length: Math.round(dMax / dStep) + 1 }, (_, i) => i * dStep).slice(1);
+  const barW = Math.max(6, Math.min(16, (innerW * 7) / span - 3));
 
   let line = `M${x(steps[0].date)},${y(steps[0].floor)}`;
   for (let i = 1; i < steps.length; i++) line += ` H${x(steps[i].date)} V${y(steps[i].floor)}`;
@@ -85,6 +94,17 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
             </text>
           </g>
         ))}
+        {dTicks.map((t) => (
+          <text key={t} x={PAD.left + innerW + 8} y={yd(t)} dy="0.32em" className="num fill-[var(--ink-3)] text-[11px]">
+            {fmt.format(t)}
+          </text>
+        ))}
+        <text x={PAD.left - 8} y={PAD.top - 14} textAnchor="end" className="fill-[var(--ink-2)] text-[11px] font-medium">
+          Floor
+        </text>
+        <text x={PAD.left + innerW + 8} y={yd(dMax) - 16} className="fill-[var(--ink-2)] text-[11px] font-medium">
+          Dropping
+        </text>
         {months.map((m, i) =>
           i % (width < 560 ? 2 : 1) === 0 ? (
             <text key={m} x={x(m)} y={H - 8} textAnchor="middle" className="fill-[var(--ink-3)] text-[11px]">
@@ -92,30 +112,43 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
             </text>
           ) : null,
         )}
-        <path d={area} fill="var(--accent)" opacity="0.1" />
+        {/* Each week's drops as bars from zero, stacked and colored by event category. */}
+        {steps.map((s, i) => {
+          let base = 0;
+          return s.drops.map((d) => {
+            const top = yd(base + d.points);
+            const bottom = yd(base);
+            base += d.points;
+            return (
+              <rect
+                key={`${s.date}-${d.name}`}
+                x={x(s.date) - barW / 2}
+                y={top}
+                width={barW}
+                height={Math.max(1, bottom - top - 1)}
+                rx={2}
+                fill={LEVEL_COLOR[d.level]}
+                opacity={hover === null || hover === i ? 0.85 : 0.35}
+              />
+            );
+          });
+        })}
+        <path d={area} fill="var(--accent)" opacity="0.08" />
         <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {/* Each drop as a bar spanning the points lost that week. */}
         {steps.map((s, i) =>
-          i > 0 && s.drops.length > 0 ? (
-            <rect
+          s.drops.length > 0 ? (
+            <circle
               key={s.date}
-              x={x(s.date) - barW / 2}
-              y={y(steps[i - 1].floor)}
-              width={barW}
-              height={Math.max(2, y(s.floor) - y(steps[i - 1].floor))}
-              rx={Math.min(3, barW / 3)}
+              cx={x(s.date)}
+              cy={y(s.floor)}
+              r="4"
               fill="var(--drop)"
-              opacity={hover === null || hover === i ? 1 : 0.4}
+              stroke="var(--surface)"
+              strokeWidth="2"
+              opacity={hover === null || hover === i ? 1 : 0.5}
             />
           ) : null,
         )}
-        {/* End label: where he lands with no new points. */}
-        <text x={x(last.date) + 10} y={y(last.floor)} dy="-0.2em" className="num fill-[var(--ink)] text-[13px] font-semibold">
-          {fmt.format(last.floor)}
-        </text>
-        <text x={x(last.date) + 10} y={y(last.floor)} dy="1.1em" className="fill-[var(--ink-3)] text-[11px]">
-          rank {last.rank}
-        </text>
 
         {active && (
           <line x1={x(active.date)} x2={x(active.date)} y1={PAD.top} y2={PAD.top + innerH} stroke="var(--ink-3)" strokeWidth="1" />
@@ -151,8 +184,11 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
           {active.drops.length > 0 && (
             <ul className="mt-2 space-y-0.5 border-t border-rule pt-2">
               {active.drops.map((d) => (
-                <li key={d.name} className="flex justify-between gap-3 text-ink-2">
-                  <span className="truncate">{d.name}</span>
+                <li key={d.name} className="flex items-center justify-between gap-3 text-ink-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <LevelDot level={d.level} />
+                    <span className="truncate">{d.name}</span>
+                  </span>
                   <span className="num font-semibold text-drop">−{fmt.format(d.points)}</span>
                 </li>
               ))}
