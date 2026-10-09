@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+
+/*
+ * Tokens. The page is a cool, chalk-white surface; the header band is the navy
+ * of a hard court with white court lines. Level colors come from a validated
+ * categorical palette, in fixed order: Slam, Masters, 500, 250, Finals.
+ */
+:root {
+  color-scheme: light;
+  --surface: #f2f5f7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e7ecf0;
+  --ink: #12202d;
+  --ink-2: #4b5c6c;
+  --ink-3: #6c7b89;
+  --rule: #d6dee5;
+  --court: #0f2a44;
+  --court-2: #17395b;
+  --court-line: rgb(255 255 255 / 0.55);
+  --on-court: #ffffff;
+  --on-court-2: #b9c8d8;
+  --accent: #1f5ea8;
+  --drop: #c8382f;
+  --lvl-g: #2a78d6;
+  --lvl-m: #eb6834;
+  --lvl-500: #1baf7a;
+  --lvl-250: #eda100;
+  --lvl-f: #e87ba4;
+  --lvl-other: #b8c3cd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #0c1621;
+    --surface-raised: #13202d;
+    --surface-sunken: #0a121b;
+    --ink: #eef3f7;
+    --ink-2: #b3c1ce;
+    --ink-3: #8798a8;
+    --rule: #233446;
+    --court: #0a1f33;
+    --court-2: #12304d;
+    --accent: #6ea8ec;
+    --drop: #f07a6e;
+    --lvl-g: #3987e5;
+    --lvl-m: #d95926;
+    --lvl-500: #199e70;
+    --lvl-250: #c98500;
+    --lvl-f: #d55181;
+    --lvl-other: #4a5b6c;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #0c1621;
+  --surface-raised: #13202d;
+  --surface-sunken: #0a121b;
+  --ink: #eef3f7;
+  --ink-2: #b3c1ce;
+  --ink-3: #8798a8;
+  --rule: #233446;
+  --court: #0a1f33;
+  --court-2: #12304d;
+  --accent: #6ea8ec;
+  --drop: #f07a6e;
+  --lvl-g: #3987e5;
+  --lvl-m: #d95926;
+  --lvl-500: #199e70;
+  --lvl-250: #c98500;
+  --lvl-f: #d55181;
+  --lvl-other: #4a5b6c;
+}
+
+@theme inline {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-court: var(--court);
+  --color-court-2: var(--court-2);
+  --color-on-court: var(--on-court);
+  --color-on-court-2: var(--on-court-2);
+  --color-accent: var(--accent);
+  --color-drop: var(--drop);
+}
+
+html {
+  background: var(--court);
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "lnum";
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

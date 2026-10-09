@@ -1,0 +1,40 @@
+name: Refresh ATP data
+
+on:
+  schedule:
+    # Daily; rankings are published on Mondays.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  # Also on merges, so the demo data is replaced as soon as this lands.
+  push:
+    branches: [main]
+    paths-ignore: [data/atp.json]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run sync-data
+        env:
+          ATP_DATA_BASE_URL: ${{ vars.ATP_DATA_BASE_URL }}
+      - run: npm run build
+      - name: Commit if the data changed
+        run: |
+          if git diff --quiet -- data/atp.json; then
+            echo "No new data."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/atp.json
+          git commit -m "Refresh ATP data"
+          git push
