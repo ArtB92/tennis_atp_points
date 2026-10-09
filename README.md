@@ -12,8 +12,8 @@ Built with Next.js, TypeScript and Tailwind CSS. Every page is generated statica
 
 `npm run sync-data` downloads the [TennisMyLife ATP match database](https://stats.tennismylife.org/tennis-match-database) (last season, this season and events in progress; updated daily, in Jeff Sackmann's column layout) and writes `data/atp.json`. The **Refresh ATP data** GitHub Action runs this daily (and on every push to `main`) and commits the file when it changes, which redeploys the site on hosts that build from `main`.
 
-- **Rankings are a live estimate.** No free source publishes the ATP ranking list as a file any more (Jeff Sackmann's tennis_atp repository, the usual one, has been taken down). Every match row carries each player's official points for that week, so the ranking is built from each player's latest official figure, plus points earned since and minus points dropped since. As on live-ranking sites, last year's points at an event come off as soon as this year's edition starts.
-- Points per event are computed from the round reached and the current ATP points table (`lib/points.ts`). Grand Slams, Masters 1000, ATP 500, ATP 250 and the ATP Finals are tracked; the rest of each total (mostly Challengers) is shown as "other", and Challenger points earned after a player's latest tour-level event are missing from the estimate.
+- **Ranks and point totals are the official ATP list.** The ATP site blocks automated access, so the sync copies the list from TennisExplorer, which mirrors the current week's figures, and falls back to ESPN (which can lag a week). Only if neither answers is the ranking estimated from the official points carried on each match row, plus points earned and minus points dropped since.
+- Points per event are computed from the round reached and the current ATP points table (`lib/points.ts`). Grand Slams, Masters 1000, ATP 500, ATP 250 and the ATP Finals are tracked; the rest of each official total (mostly Challengers) is shown as "other".
 - Drop dates are estimates: the Monday after next year's edition of the event ends.
 - To use another copy with the same file names, set the `ATP_DATA_BASE_URL` repository variable.
 

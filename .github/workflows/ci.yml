@@ -30,7 +30,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: scripts/probe-sources.sh
       - run: npm run sync-data
         env:
           ATP_DATA_BASE_URL: ${{ vars.ATP_DATA_BASE_URL }}

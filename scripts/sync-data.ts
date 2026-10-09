@@ -6,17 +6,21 @@
  * matches from events still in progress in ongoing_tourneys.csv.
  * ATP_DATA_BASE_URL points at another copy with the same file names.
  *
- * Ranking totals come from the official ATP list as published by ESPN
- * (ATP_RANKING_URL overrides it); without it they are estimated.
+ * Ranking totals are copied from the official ATP list, read from TennisExplorer
+ * (current week) or else ESPN (can lag a week); without either they are estimated.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildDataset, type OfficialRanking } from "../lib/build";
 import { toISO } from "../lib/dates";
 import { parseEspnRanking } from "../lib/espn";
+import { parseTennisExplorerPage } from "../lib/tennisexplorer";
 
 const BASE = (process.env.ATP_DATA_BASE_URL || "https://stats.tennismylife.org/data").replace(/\/$/, "");
-const RANKING_URL = process.env.ATP_RANKING_URL || "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings";
+const TE_URL = "https://www.tennisexplorer.com/ranking/atp-men/";
+const ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings";
+const BROWSER_UA = "Mozilla/5.0";
+const TOP_N = 200;
 const OUT = path.join(import.meta.dirname, "..", "data", "atp.json");
 
 async function get(file: string): Promise<string> {
@@ -28,18 +32,48 @@ async function get(file: string): Promise<string> {
   return text;
 }
 
-/** The official ATP list (ESPN mirrors it). Returns null if it can't be read, so the sync falls back to an estimate. */
-async function officialRanking(): Promise<OfficialRanking | null> {
-  try {
-    const res = await fetch(RANKING_URL);
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const ranking = parseEspnRanking(await res.json());
-    if (ranking.entries.length < 100) throw new Error(`only ${ranking.entries.length} players`);
-    return ranking;
-  } catch (err) {
-    console.warn(`::warning::Official ranking unavailable (${RANKING_URL}): ${err}. Falling back to an estimate.`);
-    return null;
+/** TennisExplorer mirrors the current official list, 50 players a page. */
+async function tennisExplorerRanking(): Promise<OfficialRanking> {
+  const entries = new Map<number, OfficialRanking["entries"][number]>();
+  let date = "";
+  for (let page = 1; page <= Math.ceil(TOP_N / 50) && entries.size < TOP_N; page++) {
+    const url = `${TE_URL}?page=${page}`;
+    const res = await fetch(url, { headers: { "user-agent": BROWSER_UA } });
+    if (!res.ok) throw new Error(`GET ${url}: ${res.status} ${res.statusText}`);
+    const ranking = parseTennisExplorerPage(await res.text());
+    if (date && ranking.date !== date) throw new Error(`page ${page} is for ${ranking.date}, not ${date}`);
+    date = ranking.date;
+    const before = entries.size;
+    for (const e of ranking.entries) entries.set(e.rank, e);
+    if (entries.size === before) break;
   }
+  return { date, entries: [...entries.values()].sort((a, b) => a.rank - b.rank).slice(0, TOP_N) };
+}
+
+/** ESPN's copy of the list, which can lag a week behind. */
+async function espnRanking(): Promise<OfficialRanking> {
+  const res = await fetch(ESPN_URL);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return parseEspnRanking(await res.json());
+}
+
+/** The official ATP list from the first source that serves it in full; null falls back to an estimate. */
+async function officialRanking(): Promise<OfficialRanking | null> {
+  for (const [name, read] of [
+    ["TennisExplorer", tennisExplorerRanking],
+    ["ESPN", espnRanking],
+  ] as const) {
+    try {
+      const ranking = await read();
+      if (ranking.entries.length < 100) throw new Error(`only ${ranking.entries.length} players`);
+      console.log(`official ranking of ${ranking.date} from ${name}`);
+      return ranking;
+    } catch (err) {
+      console.warn(`::warning::Official ranking unavailable from ${name}: ${err}`);
+    }
+  }
+  console.warn("::warning::No official ranking source answered; falling back to an estimate.");
+  return null;
 }
 
 async function main() {

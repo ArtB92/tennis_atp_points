@@ -14,7 +14,7 @@ export interface BuildInput {
   matchesCsvs: string[];
   /** An official ranking list as CSV (ranking_date, rank, player, points), keyed by player id. */
   rankingsCsv?: string;
-  /** An official ranking list keyed by player name (e.g. from ESPN). Without either list, rankings are estimated. */
+  /** An official ranking list keyed by player name (TennisExplorer, ESPN). Without either list, rankings are estimated. */
   ranking?: OfficialRanking;
   /** Player bios (player_id, name_first, name_last, hand, dob, ioc). Without one, bios come from match rows. */
   playersCsv?: string;
@@ -248,38 +248,50 @@ function snapshots(rows: Record<string, string>[], asOf: string): Map<string, Sn
   return out;
 }
 
-/** Fold accents, case and punctuation so "Felix Auger-Aliassime" and "Félix Auger Aliassime" match. */
+/**
+ * Fold accents, case, punctuation and word order, so "Felix Auger-Aliassime",
+ * "Félix Auger Aliassime" and "Auger Aliassime Felix" all match.
+ */
 export function nameKey(name: string): string {
   return name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z]+/g, " ")
-    .trim();
+    .split(/[^a-z]+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
 }
 
 /** Attach an official list keyed by name to the players in the match data. */
 function namedPlayers(ranking: OfficialRanking, bios: Map<string, Snapshot>, topN: number): Player[] {
-  const byName = new Map<string, string>();
-  const byLastInitial = new Map<string, string | null>();
+  const byName = new Map<string, string | null>();
   for (const [id, s] of bios) {
     const key = nameKey(s.name);
-    byName.set(key, id);
-    const parts = key.split(" ");
-    const short = `${parts[0][0]} ${parts.slice(1).join(" ")}`;
-    byLastInitial.set(short, byLastInitial.has(short) ? null : id);
+    byName.set(key, byName.has(key) ? null : id);
   }
+  // Fallback for spelling variants: the one player who shares every name part but one.
+  const nearMatch = (key: string): string | null => {
+    const parts = key.split(" ");
+    if (parts.length < 2) return null;
+    const hits = [...byName].filter(([k, id]) => {
+      if (!id) return false;
+      const other = k.split(" ");
+      return other.length === parts.length && parts.filter((p) => other.includes(p)).length === parts.length - 1;
+    });
+    return hits.length === 1 ? hits[0][1] : null;
+  };
   return ranking.entries
     .filter((e) => e.rank <= topN)
     .sort((a, b) => a.rank - b.rank)
     .map((e) => {
       const key = nameKey(e.name);
-      const parts = key.split(" ");
-      const id = byName.get(key) ?? byLastInitial.get(`${parts[0][0]} ${parts.slice(1).join(" ")}`) ?? null;
+      const id = byName.get(key) ?? nearMatch(key);
       const bio = id ? bios.get(id) : undefined;
       return {
         id: id ?? `x-${key.replace(/ /g, "-")}`,
-        name: e.name,
+        // Prefer the match data's "First Last" spelling.
+        name: bio?.name ?? e.name,
         country: bio?.ioc ?? "",
         hand: bio?.hand ?? "",
         dob: bio?.dob ?? "",

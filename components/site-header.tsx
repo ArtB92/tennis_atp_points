@@ -82,7 +82,7 @@ export function SiteFooter() {
           )}
         </p>
         {meta.rankings === "official" && meta.source === "tennismylife" && (
-          <p>Ranks and point totals are the official ATP figures for that week, as published by ESPN.</p>
+          <p>Ranks and point totals are copied from the official ATP list for that week.</p>
         )}
         {meta.rankings === "estimated" && (
           <p>

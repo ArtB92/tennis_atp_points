@@ -116,7 +116,7 @@ describe("with an official list keyed by name", () => {
     ranking: {
       date: "2026-10-05",
       entries: [
-        { rank: 2, points: 8800, name: "Ben Two Tone" },
+        { rank: 2, points: 8800, name: "Two Tone Ben" },
         { rank: 1, points: 9500, name: "Ana One" },
         { rank: 3, points: 1000, name: "Zed Unknown" },
       ],
@@ -130,7 +130,7 @@ describe("with an official list keyed by name", () => {
     expect(ds.players.map((p) => [p.rank, p.id, p.points, p.country])).toEqual([
       [1, "A", 9500, "ESP"],
       [2, "B", 8800, "ITA"],
-      [3, "x-zed-unknown", 1000, ""],
+      [3, "x-unknown-zed", 1000, ""],
     ]);
   });
 
