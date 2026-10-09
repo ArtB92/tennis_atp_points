@@ -79,9 +79,9 @@ export default async function ProjectionPage({ params }: PageProps<"/players/[id
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span aria-hidden className="inline-block h-0.5 w-4 rounded bg-accent" />
-            Points floor (left axis)
+            Points floor
           </span>
-          <span className="text-ink-3">Points dropping that week (right axis):</span>
+          <span className="text-ink-3">Dots and bars by event dropping:</span>
           <LevelLegend />
         </div>
       </section>

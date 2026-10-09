@@ -15,8 +15,12 @@ export interface FloorStep {
 }
 
 const fmt = new Intl.NumberFormat("en-US");
-const H = 420;
-const PAD = { top: 28, right: 56, bottom: 30, left: 52 };
+/** Floor panel on top, weekly drops panel below, sharing one time axis. */
+const FLOOR_H = 300;
+const GAP = 34;
+const DROP_H = 120;
+const PAD = { top: 28, right: 16, bottom: 30, left: 52 };
+const H = PAD.top + FLOOR_H + GAP + DROP_H + PAD.bottom;
 
 function niceStep(max: number) {
   const raw = max / 4;
@@ -26,7 +30,8 @@ function niceStep(max: number) {
 
 /**
  * Step chart of a player's points floor: what he keeps if he earns nothing
- * more. Each step down is a result from last year dropping off.
+ * more. Each step down is a result from last year dropping off; the panel
+ * below shows what drops each week, colored by event category.
  */
 export function FloorChart({ steps }: { steps: FloorStep[] }) {
   const [ref, width] = useWidth<HTMLDivElement>();
@@ -36,19 +41,24 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
   const to = steps[steps.length - 1].date;
   const span = daysBetween(from, to);
   const innerW = Math.max(200, width - PAD.left - PAD.right);
-  const innerH = H - PAD.top - PAD.bottom;
+  const innerH = FLOOR_H;
+  const dropTop = PAD.top + FLOOR_H + GAP;
+  const dropBottom = dropTop + DROP_H;
   const x = (iso: string) => PAD.left + (daysBetween(from, iso) / span) * innerW;
   const step = niceStep(steps[0].floor || 1);
   const yMax = Math.ceil((steps[0].floor || 1) / step) * step;
   const y = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
   const ticks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, i) => i * step);
 
-  // Right axis: points dropping each week, drawn as bars from zero in the lower half of the chart.
+  // Lower panel: points dropping each week, as bars from zero on their own axis.
   const weekDrop = (s: FloorStep) => s.drops.reduce((t, d) => t + d.points, 0);
-  const dStep = niceStep(Math.max(...steps.map(weekDrop), 1) / 2);
-  const dMax = Math.ceil(Math.max(...steps.map(weekDrop), 1) / dStep) * dStep;
-  const yd = (v: number) => PAD.top + innerH - (v / (dMax * 2)) * innerH;
-  const dTicks = Array.from({ length: Math.round(dMax / dStep) + 1 }, (_, i) => i * dStep).slice(1);
+  const maxDrop = Math.max(...steps.map(weekDrop), 1);
+  const dStep = niceStep(maxDrop * 2);
+  const dMax = Math.ceil(maxDrop / dStep) * dStep;
+  const yd = (v: number) => dropBottom - (v / dMax) * DROP_H;
+  const dTicks = Array.from({ length: Math.round(dMax / dStep) + 1 }, (_, i) => i * dStep);
+  // A step's dot takes the color of the biggest event dropping that week.
+  const dotColor = (s: FloorStep) => LEVEL_COLOR[s.drops.reduce((a, b) => (b.points > a.points ? b : a)).level];
   const barW = Math.max(6, Math.min(16, (innerW * 7) / span - 3));
 
   let line = `M${x(steps[0].date)},${y(steps[0].floor)}`;
@@ -95,14 +105,17 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
           </g>
         ))}
         {dTicks.map((t) => (
-          <text key={t} x={PAD.left + innerW + 8} y={yd(t)} dy="0.32em" className="num fill-[var(--ink-3)] text-[11px]">
-            {fmt.format(t)}
-          </text>
+          <g key={t}>
+            <line x1={PAD.left} x2={PAD.left + innerW} y1={yd(t)} y2={yd(t)} stroke="var(--rule)" strokeWidth="1" />
+            <text x={PAD.left - 8} y={yd(t)} dy="0.32em" textAnchor="end" className="num fill-[var(--ink-3)] text-[11px]">
+              {fmt.format(t)}
+            </text>
+          </g>
         ))}
         <text x={PAD.left - 8} y={PAD.top - 14} textAnchor="end" className="fill-[var(--ink-2)] text-[11px] font-medium">
           Floor
         </text>
-        <text x={PAD.left + innerW + 8} y={yd(dMax) - 16} className="fill-[var(--ink-2)] text-[11px] font-medium">
+        <text x={PAD.left - 8} y={dropTop - 14} textAnchor="end" className="fill-[var(--ink-2)] text-[11px] font-medium">
           Dropping
         </text>
         {months.map((m, i) =>
@@ -128,7 +141,7 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
                 height={Math.max(1, bottom - top - 1)}
                 rx={2}
                 fill={LEVEL_COLOR[d.level]}
-                opacity={hover === null || hover === i ? 0.85 : 0.35}
+                opacity={hover === null || hover === i ? 0.9 : 0.35}
               />
             );
           });
@@ -141,8 +154,8 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
               key={s.date}
               cx={x(s.date)}
               cy={y(s.floor)}
-              r="4"
-              fill="var(--drop)"
+              r="4.5"
+              fill={dotColor(s)}
               stroke="var(--surface)"
               strokeWidth="2"
               opacity={hover === null || hover === i ? 1 : 0.5}
@@ -151,13 +164,13 @@ export function FloorChart({ steps }: { steps: FloorStep[] }) {
         )}
 
         {active && (
-          <line x1={x(active.date)} x2={x(active.date)} y1={PAD.top} y2={PAD.top + innerH} stroke="var(--ink-3)" strokeWidth="1" />
+          <line x1={x(active.date)} x2={x(active.date)} y1={PAD.top} y2={dropBottom} stroke="var(--ink-3)" strokeWidth="1" />
         )}
         <rect
           x={PAD.left}
           y={PAD.top}
           width={innerW}
-          height={innerH}
+          height={dropBottom - PAD.top}
           fill="transparent"
           tabIndex={0}
           aria-label="Explore the floor week by week with the arrow keys"
