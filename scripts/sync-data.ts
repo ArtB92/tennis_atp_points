@@ -45,7 +45,13 @@ async function tennisExplorerRanking(week?: string, size = TOP_N): Promise<Offic
     const url = `${TE_URL}?${week ? `date=${week}&` : ""}page=${page}`;
     const res = await fetch(url, { headers: { "user-agent": BROWSER_UA } });
     if (!res.ok) throw new Error(`GET ${url}: ${res.status} ${res.statusText}`);
-    const ranking = parseTennisExplorerPage(await res.text());
+    const html = await res.text();
+    const ranking = parseTennisExplorerPage(html);
+    if (page === 1 && !week && ranking.entries.filter((e) => e.country).length < ranking.entries.length / 2) {
+      // Countries fill in flags for players the match data lacks; show the row so the parser can be fixed.
+      const at = html.indexOf('class="rank');
+      console.warn(`::warning::TennisExplorer countries not found; first row: ${html.slice(at, at + 800).replace(/\s+/g, " ")}`);
+    }
     if (week && ranking.date !== week) throw new Error(`asked for ${week}, got ${ranking.date}`);
     if (date && ranking.date !== date) throw new Error(`page ${page} is for ${ranking.date}, not ${date}`);
     date = ranking.date;

@@ -11,14 +11,10 @@ export function parseTennisExplorerPage(html: string): OfficialRanking & { dates
   if (!date) throw new Error("TennisExplorer page has no ranking date");
   const dates = [...html.matchAll(/<option value="(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
   const entries: OfficialRanking["entries"] = [];
-  const row =
-    /class="rank[^"]*">\s*(\d+)\.[\s\S]*?\/player\/([^"/]+)\/">([^<]+)<\/a>\s*<\/td>\s*(?:<td class="tl">([\s\S]*?)<\/td>)?[\s\S]*?class="long-point">\s*(\d+)/g;
+  const row = /class="rank[^"]*">\s*(\d+)\.[\s\S]*?\/player\/([^"/]+)\/">([^<]+)<\/a>([\s\S]*?)class="long-point">\s*(\d+)/g;
   for (const m of html.matchAll(row)) {
     const name = decode(m[3]).trim();
-    const countryCell = m[4] ?? "";
-    const country =
-      countryCell.match(/country=([A-Z]{3})/)?.[1] ?? countryCode(decode(countryCell.replace(/<[^>]+>/g, "")).trim());
-    entries.push({ rank: Number(m[1]), name, points: Number(m[5]), displayName: firstLast(name, m[2]), country });
+    entries.push({ rank: Number(m[1]), name, points: Number(m[5]), displayName: firstLast(name, m[2]), country: country(m[4]) });
   }
   return { date, dates, entries };
 }
@@ -33,6 +29,17 @@ export function firstLast(name: string, slug: string): string {
   while (n < words.length - 1 && fold(words[n]).split(/[^a-z]+/).filter(Boolean).every((p) => slugParts.has(p))) n++;
   if (n === 0) n = 1;
   return [...words.slice(n), ...words.slice(0, n)].join(" ");
+}
+
+/** The country between the name and the points: a ?country=XXX link, or a cell naming it. */
+function country(cells: string): string {
+  const code = cells.match(/country=([A-Z]{3})/)?.[1];
+  if (code) return code;
+  for (const c of cells.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)) {
+    const found = countryCode(decode(c[1].replace(/<[^>]+>/g, "")).trim());
+    if (found) return found;
+  }
+  return "";
 }
 
 function decode(s: string): string {
