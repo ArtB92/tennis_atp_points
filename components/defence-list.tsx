@@ -12,6 +12,8 @@ export interface DefenceRow {
   level: Level;
   surface: string;
   nextStart: string;
+  /** This year's edition has already started: his new result there isn't in the ranking yet. */
+  started: boolean;
   drops: string;
   points: number;
   finish: Finish | null;
@@ -29,7 +31,7 @@ export function DefenceList({ rows }: { rows: DefenceRow[] }) {
 
   const groups = new Map<string, DefenceRow[]>();
   for (const r of shown) {
-    const k = monthKey.format(new Date(`${r.nextStart}T00:00:00Z`));
+    const k = r.started ? "Under way or just played" : monthKey.format(new Date(`${r.nextStart}T00:00:00Z`));
     groups.set(k, [...(groups.get(k) ?? []), r]);
   }
 

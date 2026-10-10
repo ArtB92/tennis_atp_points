@@ -15,6 +15,8 @@ export interface Player {
   rank: number;
   /** ATP ranking points at the ranking date (official or estimated, see DatasetMeta.rankings). */
   points: number;
+  /** Rank on the previous weekly list: null when he wasn't on it, absent when that list isn't known. */
+  prevRank?: number | null;
 }
 
 export interface Tournament {
@@ -29,6 +31,8 @@ export interface Tournament {
   end: string;
   /** Date these results stop counting, ISO date. */
   drops: string;
+  /** Dates of the next edition, once it is in the match data. */
+  next?: { start: string; end: string };
 }
 
 export interface Match {
@@ -93,5 +97,10 @@ export interface Dataset {
   players: Player[];
   tournaments: Tournament[];
   results: Result[];
+  /**
+   * Results from counting events that the official total leaves out (only his best
+   * non-mandatory results count). Shown on player pages, kept out of every sum.
+   */
+  uncounted?: Result[];
   draws: Draw[];
 }

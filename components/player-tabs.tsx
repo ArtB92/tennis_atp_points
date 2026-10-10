@@ -8,6 +8,7 @@ export function PlayerTabs({ id }: { id: string }) {
   const tabs = [
     { href: `/players/${id}`, label: "Last 52 weeks" },
     { href: `/players/${id}/projection`, label: "Points to defend" },
+    { href: `/compare?a=${id}`, label: "Compare" },
   ];
   return (
     <nav aria-label="Player views" className="flex gap-6">

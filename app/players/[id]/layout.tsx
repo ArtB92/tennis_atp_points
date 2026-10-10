@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Flag } from "@/components/flag";
 import { PlayerTabs } from "@/components/player-tabs";
+import { RankMove } from "@/components/rank-move";
 import { SiteHeader } from "@/components/site-header";
 import { getDataset, getPlayer } from "@/lib/data";
 import { ageOn } from "@/lib/dates";
@@ -27,6 +28,12 @@ export default async function PlayerLayout({ children, params }: LayoutProps<"/p
             <span className="sr-only">Rank </span>
             {player.rank}
           </p>
+          {player.prevRank !== undefined && (
+            <p className="-ml-4 pb-4 text-sm text-on-court-2 sm:-ml-6 sm:pb-6">
+              <RankMove move={player.prevRank === null ? null : player.prevRank - player.rank} className="text-base" />
+              <span className="block text-xs">{player.prevRank === null ? "this week" : "since last week"}</span>
+            </p>
+          )}
           <div className="pb-2 sm:pb-4">
             <h1 className="display text-4xl font-bold sm:text-6xl">{player.name}</h1>
             <p className="mt-2 flex items-center gap-2.5 text-on-court-2">
