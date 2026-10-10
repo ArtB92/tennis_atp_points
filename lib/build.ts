@@ -292,7 +292,9 @@ export function notInTotal<R extends { points: number; event: Tournament }>(resu
     if (sum < excess) continue;
     if (!best || sum < best.sum || (sum === best.sum && count < best.count)) best = { sum, mask, count };
   }
-  if (!best) return new Set(pool);
+  // A small gap the cheapest set overshoots by more than the gap itself is likelier a
+  // points-table or source difference than a result left out; leave it alone.
+  if (!best || best.sum > 2 * excess) return new Set();
   return new Set(pool.filter((_, i) => best.mask & (1 << i)));
 }
 
@@ -401,17 +403,19 @@ function namedPlayers(ranking: OfficialRanking, bios: Map<string, Snapshot>, top
   }
   const claimed = new Set(ids.values());
   // Fallback for spelling variants ("Alex/Alexander", "Felix/Félix"): the one unclaimed
-  // player who shares every name part but one, where the odd parts are close.
+  // player who shares every name part but one, where the odd parts are close, or whose
+  // name is the other's with parts added or left out.
   const nearMatch = (key: string): string | null => {
     const parts = key.split(" ");
     if (parts.length < 2) return null;
     const hits = [...byName].filter(([k, id]) => {
       if (!id || claimed.has(id)) return false;
       const other = k.split(" ");
-      if (other.length !== parts.length) return false;
       const mine = parts.filter((p) => !other.includes(p));
       const theirs = other.filter((p) => !parts.includes(p));
-      if (mine.length !== 1 || theirs.length !== 1) return false;
+      // One spelling has extra name parts ("Daniel Merida Aguilar" / "Daniel Merida"): at least two shared.
+      if (mine.length === 0 || theirs.length === 0) return parts.length - mine.length >= 2;
+      if (other.length !== parts.length || mine.length !== 1 || theirs.length !== 1) return false;
       const [a, b] = [mine[0], theirs[0]];
       return a.startsWith(b) || b.startsWith(a) || distance(a, b) <= 2;
     });

@@ -177,6 +177,7 @@ describe("matching a named list without reusing a player", () => {
         { rank: 5, points: 4010, name: "Medvedev Daniil" },
         // Another Medvedev: shares all name parts but one, yet the id is taken.
         { rank: 178, points: 324, name: "Medvedev Andrey", displayName: "Andrey Medvedev", country: "RUS" },
+        { rank: 190, points: 300, name: "Unknown Zed", displayName: "Zed Unknown", country: "FRA" },
         { rank: 8, points: 3000, name: "De Minaur Alexander" },
         { rank: 44, points: 900, name: "Merida Aguilar Daniel", displayName: "Daniel Merida Aguilar", country: "ESP" },
       ],
@@ -197,9 +198,11 @@ describe("matching a named list without reusing a player", () => {
     expect(ds.players.map((p) => [p.rank, p.id, p.name, p.country])).toEqual([
       [5, "MM", "Daniil Medvedev", "RUS"],
       [8, "AF", "Alex de Minaur", "AUS"],
-      // Unmatched, but shown "First Last" with the source's country.
-      [44, "x-aguilar-daniel-merida", "Daniel Merida Aguilar", "ESP"],
+      // The match data leaves out his second surname.
+      [44, "MD", "Daniel Merida", "ESP"],
       [178, "x-andrey-medvedev", "Andrey Medvedev", "RUS"],
+      // Unmatched: shown "First Last" with the source's country.
+      [190, "x-unknown-zed", "Zed Unknown", "FRA"],
     ]);
   });
 
@@ -209,6 +212,7 @@ describe("matching a named list without reusing a player", () => {
       [8, 10],
       [44, 44],
       [178, null],
+      [190, null],
     ]);
   });
 });
@@ -257,6 +261,10 @@ describe("notInTotal", () => {
   it("never drops a mandatory result, but may drop Monte Carlo", () => {
     const results = [r("2026-560", "G", 2000), r("2026-410", "M", 400), r("2026-404", "M", 1000)];
     expect([...notInTotal(results, 3000)].map((x) => x.event.id)).toEqual(["2026-410"]);
+  });
+
+  it("leaves a small gap alone rather than drop a much bigger result", () => {
+    expect(notInTotal([r("2026-560", "G", 2000), r("2026-747", "500", 50)], 2040).size).toBe(0);
   });
 
   it("returns nothing when the results fit the total", () => {

@@ -199,11 +199,11 @@ function PlayerCard({ side, color, asOf }: { side: CompareSide; color: string; a
       <p className="display num mt-4 text-3xl font-semibold text-ink">
         {fmt.format(player.points)} <span className="font-sans text-sm font-normal text-ink-3">points</span>
       </p>
-      <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-rule pt-4">
+      <dl className="mt-4 grid gap-1 border-t border-rule pt-4 sm:grid-cols-3 sm:gap-2">
         {facts.map((f) => (
-          <div key={f.label} className="min-w-0">
+          <div key={f.label} className="flex min-w-0 items-baseline justify-between gap-2 sm:block">
             <dt className="truncate text-xs text-ink-3">{f.label}</dt>
-            <dd className="num text-lg font-semibold text-ink">{f.value}</dd>
+            <dd className="num font-semibold text-ink sm:text-lg">{f.value}</dd>
           </div>
         ))}
       </dl>

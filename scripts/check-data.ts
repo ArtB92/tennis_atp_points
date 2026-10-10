@@ -38,6 +38,8 @@ export function checkDataset(ds: Dataset): { errors: string[]; warnings: string[
 
   const unmatched = ds.players.filter((p) => p.id.startsWith("x-"));
   if (unmatched.length) warnings.push(`${unmatched.length} ranked players have no match data: ${unmatched.map((p) => p.name).join(", ")}`);
+  const flagless = unmatched.filter((p) => !p.country);
+  if (flagless.length) warnings.push(`${flagless.length} unmatched players have no country either`);
 
   return { errors, warnings };
 }
