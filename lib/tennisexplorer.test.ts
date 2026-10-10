@@ -4,8 +4,8 @@ import { firstLast, parseTennisExplorerPage } from "./tennisexplorer";
 const html = `
 <select name="date"><option value="2026-09-28">28. 09. 2026</option><option value="2026-10-05" selected="selected">05. 10. 2026</option></select>
 <table class="result"><tbody>
-<tr><td class="rank first">1.</td><td class="t-name"><a href="/player/sinner-8b8e8/">Sinner Jannik</a></td><td class="tl"><a href="/ranking/atp-men/?country=ITA">Italy</a></td><td class="long-point">11000</td></tr>
-<tr><td class="rank first">2.</td><td class="t-name"><a href="/player/auger-aliassime/">Auger Aliassime F&#233;lix</a></td><td class="tl">Canada</td><td class="long-point">3890</td></tr>
+<tr class="one"><td class="rank first">1.</td> <td class="prevrank"><div>-</div></td> <td class="t-name"><a href="/player/sinner-8b8e8/">Sinner Jannik</a></td> <td class="tl"><a href="/ranking/atp-men/?country=italy"> <span class="fl fl-it">&nbsp;</span>Italy</a></td> <td class="long-point">11000</td> </tr>
+<tr class="two"><td class="rank first">2.</td> <td class="prevrank"><div>-</div></td> <td class="t-name"><a href="/player/auger-aliassime/">Auger Aliassime F&#233;lix</a></td> <td class="tl"><a href="/ranking/atp-men/?country=canada"> <span class="fl fl-ca">&nbsp;</span>Canada</a></td> <td class="long-point">3890</td> </tr>
 </tbody></table>`;
 
 describe("parseTennisExplorerPage", () => {

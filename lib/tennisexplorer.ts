@@ -31,7 +31,7 @@ export function firstLast(name: string, slug: string): string {
   return [...words.slice(n), ...words.slice(0, n)].join(" ");
 }
 
-/** The country between the name and the points: a ?country=XXX link, or a cell naming it. */
+/** The country between the name and the points: the cell naming it, or a ?country=XXX link. */
 function country(cells: string): string {
   const code = cells.match(/country=([A-Z]{3})/)?.[1];
   if (code) return code;
@@ -45,6 +45,7 @@ function country(cells: string): string {
 function decode(s: string): string {
   return s
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&apos;|&#39;/g, "'")
     .replace(/&quot;/g, '"');
