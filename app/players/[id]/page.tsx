@@ -63,7 +63,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                 </h2>
                 <p className="mt-1 text-sm text-ink-2">
                   Points earned at each event.
-                  {left.size > 0 && <> Faded bars are results his official total leaves out (only his best 500s and 250s count).</>}
+                  {left.size > 0 && <> Faded bars are results his official total leaves out, usually because only his best results outside the Slams and Masters count.</>}
                   {best && (
                     <>
                       {" "}
@@ -133,7 +133,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                       <p className="mb-2 text-sm text-ink-3">
                         {LEVEL_LABEL[r.tournament.level]}, {r.tournament.drawSize}-player draw.{" "}
                         {left.has(r) ? (
-                          <>These points aren&rsquo;t in his official total: only his best results outside the Slams and Masters count.</>
+                          <>These points aren&rsquo;t in his official total, usually because only his best results outside the Slams and Masters count.</>
                         ) : (
                           <>Points drop off on {formatDate(r.drops)}.</>
                         )}
