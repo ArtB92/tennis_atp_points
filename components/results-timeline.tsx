@@ -15,6 +15,8 @@ export interface TimelineEvent {
   end: string;
   points: number;
   finish: Finish;
+  /** False for a result his official total leaves out: drawn faded. */
+  counted?: boolean;
 }
 
 const fmt = new Intl.NumberFormat("en-US");
@@ -34,11 +36,12 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
   const span = daysBetween(from, to);
   const innerW = Math.max(200, width - PAD.left - PAD.right);
   const innerH = H - PAD.top - PAD.bottom;
-  const x = (iso: string) => PAD.left + (daysBetween(from, iso) / span) * innerW;
+  const barW = Math.min(14, Math.max(4, innerW / 60));
+  // Inset by a bar width, so the first and last bars clear the axis labels and the edge.
+  const x = (iso: string) => PAD.left + barW + (daysBetween(from, iso) / span) * (innerW - 2 * barW);
   const yMax = niceMax(Math.max(100, ...events.map((e) => e.points)));
   const y = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
   const ticks = [0, yMax / 2, yMax];
-  const barW = Math.min(14, Math.max(4, innerW / 60));
 
   // Month gridline labels.
   const months: string[] = [];
@@ -62,7 +65,8 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
           </g>
         ))}
         {months.map((m, i) =>
-          i % (width < 560 ? 2 : 1) === 0 ? (
+          // Skip a label that would run off the right edge.
+          i % (width < 560 ? 2 : 1) === 0 && x(m) + 24 <= width ? (
             <text key={m} x={x(m)} y={H - 8} className="fill-[var(--ink-3)] text-[11px]">
               {formatMonth(m)}
             </text>
@@ -74,7 +78,7 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
           const h = PAD.top + innerH - top;
           const r = Math.min(4, h / 2, barW / 2);
           return (
-            <g key={e.id} opacity={hover && hover !== e.id ? 0.4 : 1}>
+            <g key={e.id} opacity={(hover && hover !== e.id ? 0.4 : 1) * (e.counted === false ? 0.35 : 1)}>
               <path
                 d={`M${cx - barW / 2},${PAD.top + innerH} V${top + r} Q${cx - barW / 2},${top} ${cx - barW / 2 + r},${top} H${cx + barW / 2 - r} Q${cx + barW / 2},${top} ${cx + barW / 2},${top + r} V${PAD.top + innerH} Z`}
                 fill={LEVEL_COLOR[e.level]}
@@ -87,7 +91,7 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
                 height={innerH}
                 fill="transparent"
                 tabIndex={0}
-                aria-label={`${e.name}: ${FINISH_LABEL[e.finish]}, ${e.points} points`}
+                aria-label={`${e.name}: ${FINISH_LABEL[e.finish]}, ${e.points} points${e.counted === false ? ", not counted" : ""}`}
                 onMouseEnter={() => setHover(e.id)}
                 onFocus={() => setHover(e.id)}
                 onBlur={() => setHover(null)}
@@ -113,6 +117,7 @@ export function ResultsTimeline({ events, from, to }: { events: TimelineEvent[];
             {FINISH_LABEL[active.finish]}
             <span className="num font-semibold text-ink">{fmt.format(active.points)} pts</span>
           </p>
+          {active.counted === false && <p className="mt-1 text-xs text-ink-3">Not in his official total</p>}
         </div>
       )}
     </div>

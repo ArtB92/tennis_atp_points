@@ -27,6 +27,7 @@
   --on-court-2: #b9c8d8;
   --accent: #1f5ea8;
   --drop: #c8382f;
+  --rise: #16865c;
   --lvl-g: #2a78d6;
   --lvl-m: #eb6834;
   --lvl-500: #1baf7a;
@@ -49,6 +50,7 @@
     --court-2: #12304d;
     --accent: #6ea8ec;
     --drop: #f07a6e;
+    --rise: #4cc58f;
     --lvl-g: #3987e5;
     --lvl-m: #d95926;
     --lvl-500: #199e70;
@@ -71,6 +73,7 @@
   --court-2: #12304d;
   --accent: #6ea8ec;
   --drop: #f07a6e;
+  --rise: #4cc58f;
   --lvl-g: #3987e5;
   --lvl-m: #d95926;
   --lvl-500: #199e70;
@@ -95,6 +98,7 @@
   --color-on-court-2: var(--on-court-2);
   --color-accent: var(--accent);
   --color-drop: var(--drop);
+  --color-rise: var(--rise);
 }
 
 html {
@@ -119,10 +123,13 @@ body {
   line-height: 0.95;
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 3px;
+/* In the base layer so a component's own focus style (outline-none on a search box) wins. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -7,7 +7,7 @@ export interface DefenceEntry {
   /** Last year's result, or null if the player skipped the event. */
   result: Result | null;
   points: number;
-  /** Expected start of this year's edition. */
+  /** Start of this year's edition: its real date once played, else expected. */
   nextStart: string;
   /** Date last year's points come off his total. */
   drops: string;
@@ -60,7 +60,7 @@ export function computeProjection(ds: Dataset, playerId: string, weeks = 52): Pr
   const entries: DefenceEntry[] = ds.tournaments
     .map((t) => {
       const result = mineByT.get(t.id) ?? null;
-      return { tournament: t, result, points: result?.points ?? 0, nextStart: nextEdition(t), drops: t.drops };
+      return { tournament: t, result, points: result?.points ?? 0, nextStart: t.next?.start ?? nextEdition(t), drops: t.drops };
     })
     .filter((e) => e.drops > asOf)
     .sort((a, b) => a.drops.localeCompare(b.drops) || a.tournament.name.localeCompare(b.tournament.name));

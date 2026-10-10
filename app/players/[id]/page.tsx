@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { LevelDot, LevelLegend } from "@/components/level";
 import { ResultsTimeline } from "@/components/results-timeline";
-import { getDataset, getPlayer, resultsFor } from "@/lib/data";
+import { getDataset, getPlayer, resultsFor, uncountedFor } from "@/lib/data";
 import { addDays, formatDate, formatShortDate } from "@/lib/dates";
 import { FINISH_LABEL, LEVEL_LABEL } from "@/lib/points";
 
@@ -19,13 +19,16 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
   const player = getPlayer(id);
   if (!player) notFound();
   const { meta } = getDataset();
-  const results = resultsFor(id);
+  const counted = resultsFor(id);
+  const left = new Set(uncountedFor(id));
+  // Everything he played, newest first; results his official total leaves out are marked, not summed.
+  const results = [...counted, ...left].sort((a, b) => b.tournament.start.localeCompare(a.tournament.start));
 
-  const tracked = results.reduce((s, r) => s + r.points, 0);
+  const tracked = counted.reduce((s, r) => s + r.points, 0);
   const wins = results.reduce((s, r) => s + r.matches.filter((m) => m.won).length, 0);
   const losses = results.reduce((s, r) => s + r.matches.filter((m) => !m.won).length, 0);
   const titles = results.filter((r) => r.finish === "W");
-  const best = [...results].sort((a, b) => b.points - a.points)[0];
+  const best = [...counted].sort((a, b) => b.points - a.points)[0];
 
   const stats = [
     { label: "Events played", value: String(results.length) },
@@ -60,6 +63,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                 </h2>
                 <p className="mt-1 text-sm text-ink-2">
                   Points earned at each event.
+                  {left.size > 0 && <> Faded bars are results his official total leaves out (only his best 500s and 250s count).</>}
                   {best && (
                     <>
                       {" "}
@@ -82,6 +86,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                 end: r.tournament.end,
                 points: r.points,
                 finish: r.finish,
+                counted: !left.has(r),
               }))}
             />
           </section>
@@ -112,15 +117,26 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                         </svg>
                       </span>
                       <span className="order-4 text-sm text-ink-2 md:order-none">{FINISH_LABEL[r.finish]}</span>
-                      <span className="num text-right font-semibold text-ink">{fmt.format(r.points)}</span>
+                      {left.has(r) ? (
+                        <span className="num text-right text-ink-3" title="Not in his official total: only his best results at these events count">
+                          <span className="line-through">{fmt.format(r.points)}</span>
+                          <span className="block text-[11px] leading-tight">not counted</span>
+                        </span>
+                      ) : (
+                        <span className="num text-right font-semibold text-ink">{fmt.format(r.points)}</span>
+                      )}
                       <span className="num order-5 hidden text-right text-sm text-ink-3 md:order-none md:block">
-                        {formatDate(r.drops)}
+                        {left.has(r) ? "–" : formatDate(r.drops)}
                       </span>
                     </summary>
                     <div className="pb-4 pl-0 md:pl-28">
                       <p className="mb-2 text-sm text-ink-3">
-                        {LEVEL_LABEL[r.tournament.level]}, {r.tournament.drawSize}-player draw. Points drop off on{" "}
-                        {formatDate(r.drops)}.
+                        {LEVEL_LABEL[r.tournament.level]}, {r.tournament.drawSize}-player draw.{" "}
+                        {left.has(r) ? (
+                          <>These points aren&rsquo;t in his official total: only his best results outside the Slams and Masters count.</>
+                        ) : (
+                          <>Points drop off on {formatDate(r.drops)}.</>
+                        )}
                       </p>
                       <table className="w-full max-w-2xl text-sm">
                         <tbody>

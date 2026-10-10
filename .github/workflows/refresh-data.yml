@@ -26,6 +26,8 @@ jobs:
       - run: npm run sync-data
         env:
           ATP_DATA_BASE_URL: ${{ vars.ATP_DATA_BASE_URL }}
+      # Stops a refresh with duplicate players or misdated events from being committed.
+      - run: npm run check-data
       - run: npm run build
       - name: Commit if the data changed
         run: |

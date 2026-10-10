@@ -25,7 +25,7 @@ export function PlayerPicker({ rows }: { rows: PickerRow[] }) {
 
   return (
     <div>
-      <label className="mb-6 flex max-w-md items-center gap-2 rounded-md border border-rule bg-raised px-3 py-2.5 focus-within:border-accent">
+      <label className="mb-6 flex max-w-md items-center gap-2 rounded-md border border-rule bg-raised px-3 py-2.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25">
         <span className="sr-only">Find a player</span>
         <svg aria-hidden viewBox="0 0 20 20" className="size-4 text-ink-3" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="9" cy="9" r="6" />
@@ -58,7 +58,9 @@ export function PlayerPicker({ rows }: { rows: PickerRow[] }) {
                 <Flag country={r.country} className="mr-2 text-[13px] align-[-1px]" />
                 {r.name}
               </span>
-              <span className="num w-24 text-right font-semibold text-drop">{fmt.format(r.defendSoon)}</span>
+              <span className={`num w-24 text-right font-semibold ${r.defendSoon > 0 ? "text-drop" : "text-ink-3"}`}>
+                {fmt.format(r.defendSoon)}
+              </span>
               <span className="num w-24 text-right text-ink-2">{fmt.format(r.defendYear)}</span>
             </Link>
           </li>

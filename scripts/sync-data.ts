@@ -13,6 +13,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildDataset, type OfficialRanking } from "../lib/build";
 import { toISO } from "../lib/dates";
+import type { Dataset } from "../lib/types";
 import { parseEspnRanking } from "../lib/espn";
 import { parseTennisExplorerPage } from "../lib/tennisexplorer";
 
@@ -32,22 +33,41 @@ async function get(file: string): Promise<string> {
   return text;
 }
 
-/** TennisExplorer mirrors the current official list, 50 players a page. */
-async function tennisExplorerRanking(): Promise<OfficialRanking> {
+/**
+ * TennisExplorer mirrors the official list, 50 players a page: the current week, or an
+ * earlier one picked by date. `dates` lists every week it has, newest first.
+ */
+async function tennisExplorerRanking(week?: string, size = TOP_N): Promise<OfficialRanking & { dates: string[] }> {
   const entries = new Map<number, OfficialRanking["entries"][number]>();
   let date = "";
-  for (let page = 1; page <= Math.ceil(TOP_N / 50) && entries.size < TOP_N; page++) {
-    const url = `${TE_URL}?page=${page}`;
+  let dates: string[] = [];
+  for (let page = 1; page <= Math.ceil(size / 50) && entries.size < size; page++) {
+    const url = `${TE_URL}?${week ? `date=${week}&` : ""}page=${page}`;
     const res = await fetch(url, { headers: { "user-agent": BROWSER_UA } });
     if (!res.ok) throw new Error(`GET ${url}: ${res.status} ${res.statusText}`);
     const ranking = parseTennisExplorerPage(await res.text());
+    if (week && ranking.date !== week) throw new Error(`asked for ${week}, got ${ranking.date}`);
     if (date && ranking.date !== date) throw new Error(`page ${page} is for ${ranking.date}, not ${date}`);
     date = ranking.date;
+    dates = ranking.dates;
     const before = entries.size;
     for (const e of ranking.entries) entries.set(e.rank, e);
     if (entries.size === before) break;
   }
-  return { date, entries: [...entries.values()].sort((a, b) => a.rank - b.rank).slice(0, TOP_N) };
+  return { date, dates, entries: [...entries.values()].sort((a, b) => a.rank - b.rank).slice(0, size) };
+}
+
+/** Last week's list from TennisExplorer, for rank changes; null when it can't be read. */
+async function previousWeek(current: OfficialRanking & { dates?: string[] }): Promise<OfficialRanking | null> {
+  const week = current.dates?.filter((d) => d < current.date).sort().pop();
+  if (!week) return null;
+  try {
+    // A little deeper than the top 200, so players just inside it show a rise, not "new".
+    return await tennisExplorerRanking(week, TOP_N + 50);
+  } catch (err) {
+    console.warn(`::warning::Previous week's ranking unavailable: ${err}`);
+    return null;
+  }
 }
 
 /** ESPN's copy of the list, which can lag a week behind. */
@@ -58,7 +78,7 @@ async function espnRanking(): Promise<OfficialRanking> {
 }
 
 /** The official ATP list from the first source that serves it in full; null falls back to an estimate. */
-async function officialRanking(): Promise<OfficialRanking | null> {
+async function officialRanking(): Promise<(OfficialRanking & { dates?: string[] }) | null> {
   for (const [name, read] of [
     ["TennisExplorer", tennisExplorerRanking],
     ["ESPN", espnRanking],
@@ -83,16 +103,25 @@ async function main() {
   const files = [`${year - 1}.csv`, `${year}.csv`, "ongoing_tourneys.csv"];
   const [ranking, ...matchesCsvs] = await Promise.all([officialRanking(), ...files.map(get)]);
 
-  const ds = buildDataset({ matchesCsvs, ranking: ranking ?? undefined, source: "tennismylife", asOf: today });
+  const previousRanking = ranking ? await previousWeek(ranking) : null;
+  const ds = buildDataset({
+    matchesCsvs,
+    ranking: ranking ?? undefined,
+    previousRanking: previousRanking ?? undefined,
+    source: "tennismylife",
+    asOf: today,
+  });
   const unmatched = ds.players.filter((p) => p.id.startsWith("x-")).map((p) => p.name);
   if (unmatched.length) console.warn(`No match data found for: ${unmatched.join(", ")}`);
   if (ds.players.length < 100 || ds.tournaments.length < 20) {
     throw new Error(`Suspiciously small dataset (${ds.players.length} players, ${ds.tournaments.length} events); not writing it`);
   }
 
+  const previous: Dataset | null = await readFile(OUT, "utf8").then(JSON.parse).catch(() => null);
+  if (ds.meta.rankings === "official" && !previousRanking) carryRankChanges(ds, previous);
+
   // Leave the file alone when only the timestamp would change, so the refresh job commits real updates only.
   const strip = (d: typeof ds) => JSON.stringify({ ...d, meta: { ...d.meta, generatedAt: "" } });
-  const previous = await readFile(OUT, "utf8").then(JSON.parse).catch(() => null);
   if (previous && strip(previous) === strip(ds)) {
     console.log("data unchanged");
     return;
@@ -103,6 +132,19 @@ async function main() {
     `wrote ${path.relative(process.cwd(), OUT)} (${ds.meta.rankings} ranking of ${ds.meta.rankingDate}): latest match ${ds.meta.latestMatchDate}, ` +
       `${ds.players.length} players, ${ds.tournaments.length} events, ${ds.results.length} results\n${top}`,
   );
+}
+
+/**
+ * Without last week's list, rank changes come from the file this run replaces: kept as
+ * they were within the same week, or measured against it once a new list is out.
+ */
+function carryRankChanges(ds: Dataset, previous: Dataset | null) {
+  if (!previous || previous.meta.rankings !== "official" || previous.meta.rankingDate > ds.meta.rankingDate) return;
+  const sameWeek = previous.meta.rankingDate === ds.meta.rankingDate;
+  if (sameWeek && !previous.players.some((p) => p.prevRank !== undefined)) return;
+  const before = new Map(previous.players.map((p) => [p.id, sameWeek ? p.prevRank : p.rank]));
+  for (const p of ds.players) p.prevRank = before.get(p.id) ?? null;
+  console.log(`rank changes ${sameWeek ? "kept from the previous run" : `measured against the list of ${previous.meta.rankingDate}`}`);
 }
 
 main().catch((err) => {

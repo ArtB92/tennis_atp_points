@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "Rankings", current: (p: string) => p === "/" },
   { href: "/projection", label: "Projection", current: (p: string) => p === "/projection" || p.endsWith("/projection") },
   { href: "/calendar", label: "Calendar", current: (p: string) => p.startsWith("/calendar") },
+  { href: "/compare", label: "Compare", current: (p: string) => p === "/compare" },
 ];
 
 export function SiteNav({ date }: { date: string }) {
@@ -20,7 +21,7 @@ export function SiteNav({ date }: { date: string }) {
       <Link href="/" aria-label="Tennis ATP Points: back to the rankings" className="rounded-xl px-3 py-1.5 transition-colors hover:bg-white/10">
         <Logo />
       </Link>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-0.5 sm:gap-1.5">
         {LINKS.map((l) => {
           const current = l.current(path);
           return (
@@ -28,7 +29,7 @@ export function SiteNav({ date }: { date: string }) {
               key={l.href}
               href={l.href}
               aria-current={current ? "page" : undefined}
-              className={`display rounded-xl px-4 py-2 text-lg font-semibold tracking-wide uppercase transition-colors sm:px-5 sm:text-xl ${
+              className={`display rounded-xl px-2.5 py-2 text-base font-semibold tracking-wide uppercase transition-colors sm:px-5 sm:text-xl ${
                 current ? "bg-on-court text-court shadow-sm" : "text-on-court-2 hover:bg-white/10 hover:text-on-court"
               }`}
             >

@@ -13,6 +13,9 @@ export const LEVEL_COLOR: Record<Level, string> = {
 
 export const OTHER_COLOR = "var(--lvl-other)";
 
+/** The two players on the compare page: first solid blue, second dashed grey (category colours stay for events). */
+export const SIDE_COLOR = ["var(--accent)", "var(--ink-2)"] as const;
+
 export function LevelDot({ level, size = 8 }: { level: Level; size?: number }) {
   return (
     <span

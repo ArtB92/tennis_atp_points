@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { DefenceList, type DefenceRow } from "@/components/defence-list";
 import { FloorChart, type FloorStep } from "@/components/floor-chart";
 import { LevelLegend } from "@/components/level";
-import { getDataset, getPlayer } from "@/lib/data";
+import { dataDay, getDataset, getPlayer } from "@/lib/data";
 import { addDays, formatDate } from "@/lib/dates";
 import { computeProjection } from "@/lib/projection";
 
@@ -30,6 +30,7 @@ export default async function ProjectionPage({ params }: PageProps<"/players/[id
     return { ...f, drops };
   });
 
+  const today = dataDay();
   const rows: DefenceRow[] = entries.map((e, i) => {
     const droppedSoFar = entries.slice(0, i + 1).reduce((s, x) => s + x.points, 0);
     return {
@@ -38,6 +39,7 @@ export default async function ProjectionPage({ params }: PageProps<"/players/[id
       level: e.tournament.level,
       surface: e.tournament.surface,
       nextStart: e.nextStart,
+      started: e.nextStart <= today,
       drops: e.drops,
       points: e.points,
       finish: e.result?.finish ?? null,

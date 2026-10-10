@@ -6,6 +6,7 @@ import type { RankingRow } from "@/lib/data";
 import { LEVEL_LABEL } from "@/lib/points";
 import { Flag } from "./flag";
 import { LEVEL_COLOR, LEVELS, OTHER_COLOR } from "./level";
+import { RankMove } from "./rank-move";
 
 const fmt = new Intl.NumberFormat("en-US");
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -37,21 +38,25 @@ export function PointsLadder({ rows }: { rows: RankingRow[] }) {
               onMouseEnter={() => setActive(r.id)}
               onFocus={() => setActive(r.id)}
               onBlur={() => setActive(null)}
-              className={`grid grid-cols-[1.75rem_minmax(7rem,11rem)_1fr] items-center gap-3 rounded-xl px-2 py-1.5 transition-colors sm:grid-cols-[2rem_13rem_1fr] ${
+              className={`grid grid-cols-[1.75rem_1fr] items-center gap-x-3 rounded-xl px-2 py-1.5 transition-colors sm:grid-cols-[2rem_13rem_1fr] ${
                 isActive ? "bg-raised shadow-sm" : ""
               }`}
             >
-              <span className={`display num text-right text-lg font-semibold ${i < 3 ? "text-ink" : "text-ink-3"}`}>{r.rank}</span>
+              <span className={`display num row-span-2 text-right text-lg font-semibold sm:row-span-1 ${i < 3 ? "text-ink" : "text-ink-3"}`}>
+                {r.rank}
+              </span>
               <span className={`flex min-w-0 items-center gap-2 text-sm transition-colors ${isActive ? "font-semibold text-ink" : "text-ink-2"}`}>
                 <Flag country={r.country} className="text-[12px]" />
                 <span className="truncate">{r.name}</span>
+                <RankMove move={r.move} className="ml-auto" />
               </span>
+              {/* On phones the bar sits under the name, so it gets the full width. */}
               <span className="relative flex h-7 items-center">
-                {/* Track */}
-                <span aria-hidden className="absolute inset-y-1 left-0 right-16 rounded-full bg-sunken/70" />
-                <span className="relative flex h-full items-center gap-2" style={{ width: "calc(100% - 4rem)" }}>
+                {/* Track; the last 4.5rem is room for the total. */}
+                <span aria-hidden className="absolute inset-y-1 left-0 right-[4.5rem] rounded-full bg-sunken/70" />
+                <span className="relative flex h-full items-center gap-2" style={{ width: "calc(100% - 4.5rem)" }}>
                   <span
-                    className="flex h-full overflow-hidden rounded-full shadow-[inset_0_-2px_0_rgb(0_0_0/0.12)] transition-[width,opacity] duration-700 ease-out"
+                    className="flex h-full shrink-0 overflow-hidden rounded-full shadow-[inset_0_-2px_0_rgb(0_0_0/0.12)] transition-[width,opacity] duration-700 ease-out"
                     style={{ width: grown ? `${width}%` : "0%", transitionDelay: `${i * 35}ms`, opacity: dim ? 0.35 : 1 }}
                   >
                     {segments.map((s, j) => {

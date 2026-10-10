@@ -16,6 +16,8 @@ export interface BuildInput {
   rankingsCsv?: string;
   /** An official ranking list keyed by player name (TennisExplorer, ESPN). Without either list, rankings are estimated. */
   ranking?: OfficialRanking;
+  /** The same source's list from the week before, for each player's rank change. */
+  previousRanking?: OfficialRanking;
   /** Player bios (player_id, name_first, name_last, hand, dob, ioc). Without one, bios come from match rows. */
   playersCsv?: string;
   source: Dataset["meta"]["source"];
@@ -29,7 +31,15 @@ export interface BuildInput {
 export interface OfficialRanking {
   /** Monday the list was published, ISO date. */
   date: string;
-  entries: { rank: number; points: number; name: string }[];
+  entries: {
+    rank: number;
+    points: number;
+    name: string;
+    /** "First Last" spelling, when the source gives names surname first. */
+    displayName?: string;
+    /** IOC country code, when the source has it. */
+    country?: string;
+  }[];
 }
 
 /** Expected start of the next edition: same week next year. */
@@ -93,18 +103,26 @@ export function buildDataset(input: BuildInput): Dataset {
     else grouped.set(m.tourney_id, [m]);
   }
   const events: Event[] = [];
-  for (const [id, rows] of grouped) {
-    const days = rows.map((r) => fromCompact(r.tourney_date)).sort();
-    const first = rows[0];
-    const year = Number(days[0].slice(0, 4));
-    const kind = classifyEvent(id, first.tourney_level, first.tourney_name, year);
+  for (const [id, allRows] of grouped) {
+    const first = allRows[0];
+    const year = Number(id.slice(0, 4)) || Number(fromCompact(first.tourney_date).slice(0, 4));
+    const name0 = allRows.find((r) => r.round === "F")?.tourney_name ?? first.tourney_name;
+    const kind = classifyEvent(id, first.tourney_level, name0, year);
     if (!kind) continue;
     const { level, name } = kind;
-    const drawSize = Math.max(...rows.map((r) => Number(r.draw_size) || 0)) || 32;
+    const drawSize = Math.max(...allRows.map((r) => Number(r.draw_size) || 0)) || 32;
+    const weeks = eventWeeks(level, drawSize);
+    // Rows dated well before the rest belong to another event filed under this id (the
+    // source once put a Munich match into Rome); leave them out.
+    const lastDay = allRows.map((r) => fromCompact(r.tourney_date)).sort().pop()!;
+    const earliest = addDays(lastDay, -(7 * weeks + 3));
+    const rows = allRows.filter((r) => fromCompact(r.tourney_date) >= earliest);
+    const days = rows.map((r) => fromCompact(r.tourney_date)).sort();
+    const last = days[days.length - 1];
     // Events that start on a Sunday (or mid-week) belong to the following/current ATP week.
     const start = mondayOf(addDays(days[0], 1));
-    const end = [days[days.length - 1], addDays(start, 7 * eventWeeks(level, drawSize) - 1)].sort().pop()!;
-    events.push({ id, name, level, surface: first.surface, drawSize, start, end, drops: estimatedDrop(end), officialDrop: estimatedDrop(end), year, rows });
+    const end = [last, addDays(start, 7 * weeks - 1)].sort().pop()!;
+    events.push({ id, name, level, surface: rows[0].surface, drawSize, start, end, drops: estimatedDrop(end), officialDrop: estimatedDrop(end), year, rows });
   }
 
   // Points drop the Monday after next year's edition ends. For an estimated live
@@ -118,6 +136,7 @@ export function buildDataset(input: BuildInput): Dataset {
   for (const e of events) {
     const next = byKey.get(`id:${e.year + 1}:${suffix(e.id)}`) ?? byKey.get(`name:${e.year + 1}:${e.name.toLowerCase()}`);
     if (!next) continue;
+    e.next = { start: next.start, end: next.end };
     e.officialDrop = addDays(mondayOf(next.end), 7);
     e.drops = !official && next.start <= asOf ? next.start : e.officialDrop;
   }
@@ -160,7 +179,7 @@ export function buildDataset(input: BuildInput): Dataset {
   const players = input.rankingsCsv
     ? officialPlayers(rankRows, rankingDateCompact, input.playersCsv ?? "", topN)
     : input.ranking
-      ? namedPlayers(input.ranking, bios, topN)
+      ? namedPlayers(input.ranking, bios, topN, input.previousRanking)
       : estimatedPlayers(bios, allResults, asOf, topN);
   const kept = new Set(players.map((p) => p.id));
 
@@ -168,9 +187,17 @@ export function buildDataset(input: BuildInput): Dataset {
   const counting = events.filter((e) => (official ? e.end < asOf : e.start <= asOf) && e.drops > asOf);
   const countingIds = new Set(counting.map((e) => e.id));
   const results: Result[] = [];
+  const uncounted: Result[] = [];
+  const pointsOf = new Map(players.map((p) => [p.id, p.points]));
   for (const [playerId, list] of allResults) {
     if (!kept.has(playerId)) continue;
-    for (const { event, ...r } of list) if (countingIds.has(event.id)) results.push(r);
+    const mine = list.filter((r) => countingIds.has(r.event.id));
+    const left = official ? notInTotal(mine, pointsOf.get(playerId)!) : new Set<(typeof mine)[number]>();
+    for (const r of mine) {
+      const { event, ...rest } = r;
+      void event;
+      (left.has(r) ? uncounted : results).push(rest);
+    }
   }
 
   // Full draws of the counting editions, for every entrant (not only ranked players).
@@ -207,7 +234,17 @@ export function buildDataset(input: BuildInput): Dataset {
   });
 
   const tournaments: Tournament[] = counting
-    .map(({ id, name, level, surface, drawSize, start, end, drops }): Tournament => ({ id, name, level, surface, drawSize, start, end, drops }))
+    .map(({ id, name, level, surface, drawSize, start, end, drops, next }): Tournament => ({
+      id,
+      name,
+      level,
+      surface,
+      drawSize,
+      start,
+      end,
+      drops,
+      ...(next ? { next } : {}),
+    }))
     .sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
 
   return {
@@ -221,8 +258,42 @@ export function buildDataset(input: BuildInput): Dataset {
     players,
     tournaments,
     results,
+    uncounted,
     draws,
   };
+}
+
+/** Events the ATP always counts, played or not: Slams, mandatory Masters and the Finals. */
+function mandatory(e: Tournament): boolean {
+  return e.level === "G" || e.level === "F" || (e.level === "M" && !e.id.endsWith("-410"));
+}
+
+/**
+ * Results that can't all be in a player's official total. The ATP counts only his best
+ * non-mandatory results (500s, 250s, Monte Carlo, Challengers), so when the results here
+ * add up to more than the official total, the smallest set of non-mandatory results that
+ * covers the excess is the likeliest to be the ones left out.
+ */
+export function notInTotal<R extends { points: number; event: Tournament }>(results: R[], official: number): Set<R> {
+  const excess = results.reduce((s, r) => s + r.points, 0) - official;
+  if (excess <= 0) return new Set();
+  const optional = results.filter((r) => !mandatory(r.event) && r.points > 0).sort((a, b) => b.points - a.points);
+  // Exhaustive search is cheap for the dozen or so optional results a player has.
+  const pool = optional.slice(0, 16);
+  let best: { sum: number; mask: number; count: number } | null = null;
+  for (let mask = 1; mask < 1 << pool.length; mask++) {
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < pool.length; i++) {
+      if (!(mask & (1 << i))) continue;
+      sum += pool[i].points;
+      count++;
+    }
+    if (sum < excess) continue;
+    if (!best || sum < best.sum || (sum === best.sum && count < best.count)) best = { sum, mask, count };
+  }
+  if (!best) return new Set(pool);
+  return new Set(pool.filter((_, i) => best.mask & (1 << i)));
 }
 
 function officialPlayers(rankRows: Record<string, string>[], date: string, playersCsv: string, topN: number): Player[] {
@@ -298,42 +369,80 @@ export function nameKey(name: string): string {
     .join(" ");
 }
 
+/** Edit distance, for spotting spelling variants of one name part. */
+function distance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+  }
+  return row[b.length];
+}
+
 /** Attach an official list keyed by name to the players in the match data. */
-function namedPlayers(ranking: OfficialRanking, bios: Map<string, Snapshot>, topN: number): Player[] {
+function namedPlayers(ranking: OfficialRanking, bios: Map<string, Snapshot>, topN: number, previous?: OfficialRanking): Player[] {
   const byName = new Map<string, string | null>();
   for (const [id, s] of bios) {
     const key = nameKey(s.name);
     byName.set(key, byName.has(key) ? null : id);
   }
-  // Fallback for spelling variants: the one player who shares every name part but one.
+  const entries = ranking.entries.filter((e) => e.rank <= topN).sort((a, b) => a.rank - b.rank);
+
+  // Exact matches first, so a spelling-variant guess can never take an id someone else owns.
+  const ids = new Map<(typeof entries)[number], string>();
+  for (const e of entries) {
+    const id = byName.get(nameKey(e.name));
+    if (id && ![...ids.values()].includes(id)) ids.set(e, id);
+  }
+  const claimed = new Set(ids.values());
+  // Fallback for spelling variants ("Alex/Alexander", "Felix/Félix"): the one unclaimed
+  // player who shares every name part but one, where the odd parts are close.
   const nearMatch = (key: string): string | null => {
     const parts = key.split(" ");
     if (parts.length < 2) return null;
     const hits = [...byName].filter(([k, id]) => {
-      if (!id) return false;
+      if (!id || claimed.has(id)) return false;
       const other = k.split(" ");
-      return other.length === parts.length && parts.filter((p) => other.includes(p)).length === parts.length - 1;
+      if (other.length !== parts.length) return false;
+      const mine = parts.filter((p) => !other.includes(p));
+      const theirs = other.filter((p) => !parts.includes(p));
+      if (mine.length !== 1 || theirs.length !== 1) return false;
+      const [a, b] = [mine[0], theirs[0]];
+      return a.startsWith(b) || b.startsWith(a) || distance(a, b) <= 2;
     });
     return hits.length === 1 ? hits[0][1] : null;
   };
-  return ranking.entries
-    .filter((e) => e.rank <= topN)
-    .sort((a, b) => a.rank - b.rank)
-    .map((e) => {
-      const key = nameKey(e.name);
-      const id = byName.get(key) ?? nearMatch(key);
-      const bio = id ? bios.get(id) : undefined;
-      return {
-        id: id ?? `x-${key.replace(/ /g, "-")}`,
-        // Prefer the match data's "First Last" spelling.
-        name: bio?.name ?? e.name,
-        country: bio?.ioc ?? "",
-        hand: bio?.hand ?? "",
-        dob: bio?.dob ?? "",
-        rank: e.rank,
-        points: e.points,
-      };
-    });
+  for (const e of entries) {
+    if (ids.has(e)) continue;
+    const id = nearMatch(nameKey(e.name));
+    if (id) {
+      ids.set(e, id);
+      claimed.add(id);
+    }
+  }
+
+  // Both lists come from one source, so its own spelling links them.
+  const before = previous && new Map(previous.entries.map((e) => [nameKey(e.name), e.rank]));
+  return entries.map((e) => {
+    const id = ids.get(e);
+    const bio = id ? bios.get(id) : undefined;
+    return {
+      id: id ?? `x-${nameKey(e.name).replace(/ /g, "-")}`,
+      // Prefer the match data's "First Last" spelling.
+      name: bio?.name ?? e.displayName ?? e.name,
+      country: bio?.ioc || e.country || "",
+      hand: bio?.hand ?? "",
+      dob: bio?.dob ?? "",
+      rank: e.rank,
+      points: e.points,
+      ...(before ? { prevRank: before.get(nameKey(e.name)) ?? null } : {}),
+    };
+  });
 }
 
 /**

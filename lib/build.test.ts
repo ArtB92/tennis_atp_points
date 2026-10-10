@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDataset } from "./build";
+import { buildDataset, notInTotal } from "./build";
+import type { Level, Tournament } from "./types";
 import { computeProjection } from "./projection";
 
 const H =
@@ -159,5 +160,106 @@ describe("tournament draws", () => {
       ["B", "ITA", "F", 165],
       ["C", "FRA", "SF", 100],
     ]);
+  });
+});
+
+describe("matching a named list without reusing a player", () => {
+  const rows = [
+    H,
+    "2025-5014,Shanghai,Hard,96,M,20251012,1,MM,Daniil Medvedev,RUS,R,29,5,4000,CH,Jan Choinski,GBR,R,29,91,700,6-4 6-4,R64",
+    "2025-5014,Shanghai,Hard,96,M,20251012,2,AF,Alex de Minaur,AUS,R,26,8,3000,MD,Daniel Merida,ESP,R,21,44,900,6-4 6-4,R32",
+  ].join("\n");
+  const ds = buildDataset({
+    matchesCsvs: [rows],
+    ranking: {
+      date: "2026-10-05",
+      entries: [
+        { rank: 5, points: 4010, name: "Medvedev Daniil" },
+        // Another Medvedev: shares all name parts but one, yet the id is taken.
+        { rank: 178, points: 324, name: "Medvedev Andrey", displayName: "Andrey Medvedev", country: "RUS" },
+        { rank: 8, points: 3000, name: "De Minaur Alexander" },
+        { rank: 44, points: 900, name: "Merida Aguilar Daniel", displayName: "Daniel Merida Aguilar", country: "ESP" },
+      ],
+    },
+    previousRanking: {
+      date: "2026-09-28",
+      entries: [
+        { rank: 4, points: 4200, name: "Medvedev Daniil" },
+        { rank: 10, points: 2900, name: "De Minaur Alexander" },
+        { rank: 44, points: 900, name: "Merida Aguilar Daniel" },
+      ],
+    },
+    source: "tennismylife",
+    generatedAt: "x",
+  });
+
+  it("never gives two ranked players the same id", () => {
+    expect(ds.players.map((p) => [p.rank, p.id, p.name, p.country])).toEqual([
+      [5, "MM", "Daniil Medvedev", "RUS"],
+      [8, "AF", "Alex de Minaur", "AUS"],
+      // Unmatched, but shown "First Last" with the source's country.
+      [44, "x-aguilar-daniel-merida", "Daniel Merida Aguilar", "ESP"],
+      [178, "x-andrey-medvedev", "Andrey Medvedev", "RUS"],
+    ]);
+  });
+
+  it("records last week's rank, null for a player who wasn't on that list", () => {
+    expect(ds.players.map((p) => [p.rank, p.prevRank])).toEqual([
+      [5, 4],
+      [8, 10],
+      [44, 44],
+      [178, null],
+    ]);
+  });
+});
+
+describe("event dates", () => {
+  const rows = [
+    H,
+    // The source filed one Munich match (week of 13 Apr) under Rome's id.
+    "2026-416,Munich,Clay,32,A,20260415,1,A,Ana One,ESP,R,25,1,9000,B,Ben Two,ITA,L,24,2,8000,6-4 6-4,R32",
+    "2026-416,Rome Masters,Clay,96,M,20260506,2,A,Ana One,ESP,R,25,1,9000,C,Cal Three,FRA,R,21,40,1200,6-1 6-1,R64",
+    "2026-416,Rome Masters,Clay,96,M,20260517,3,A,Ana One,ESP,R,25,1,9000,B,Ben Two,ITA,L,24,2,8000,6-4 6-4,F",
+    // Beijing 2025, and 2026 played after the list's date.
+    "2025-747,Beijing,Hard,32,500,20251001,1,B,Ben Two,ITA,L,24,2,8000,C,Cal Three,FRA,R,21,40,1200,6-4 6-4,F",
+    "2026-747,Beijing,Hard,32,500,20260930,2,C,Cal Three,FRA,R,21,40,1200,A,Ana One,ESP,R,25,1,9000,6-4 6-4,R32",
+    "2026-747,Beijing,Hard,32,500,20261006,1,C,Cal Three,FRA,R,21,40,1200,B,Ben Two,ITA,L,24,2,8000,6-4 6-4,F",
+  ].join("\n");
+  const ds = buildDataset({
+    matchesCsvs: [rows],
+    ranking: { date: "2026-10-05", entries: [{ rank: 1, points: 9000, name: "Ana One" }, { rank: 2, points: 8000, name: "Ben Two" }] },
+    source: "tennismylife",
+    generatedAt: "x",
+  });
+
+  it("leaves out rows dated well before the rest of the event", () => {
+    const rome = ds.tournaments.find((t) => t.id === "2026-416")!;
+    expect([rome.name, rome.start, rome.end]).toEqual(["Rome Masters", "2026-05-04", "2026-05-17"]);
+  });
+
+  it("keeps the next edition's real dates", () => {
+    const beijing = ds.tournaments.find((t) => t.id === "2025-747")!;
+    expect(beijing.next).toEqual({ start: "2026-09-28", end: "2026-10-06" });
+    expect(beijing.drops).toBe("2026-10-12");
+  });
+});
+
+describe("notInTotal", () => {
+  const ev = (id: string, level: Level) => ({ id, level }) as Tournament;
+  const r = (id: string, level: Level, points: number) => ({ points, event: ev(id, level) });
+
+  it("leaves out the smallest set of optional results that covers the excess", () => {
+    const results = [r("2026-560", "G", 2000), r("2026-747", "500", 500), r("2026-321", "250", 250), r("2026-322", "250", 100)];
+    // 2850 tracked against 2600 official: 250 too many, best covered by the 250 alone.
+    expect([...notInTotal(results, 2600)].map((x) => x.event.id)).toEqual(["2026-321"]);
+  });
+
+  it("never drops a mandatory result, but may drop Monte Carlo", () => {
+    const results = [r("2026-560", "G", 2000), r("2026-410", "M", 400), r("2026-404", "M", 1000)];
+    expect([...notInTotal(results, 3000)].map((x) => x.event.id)).toEqual(["2026-410"]);
+  });
+
+  it("returns nothing when the results fit the total", () => {
+    expect(notInTotal([r("2026-747", "500", 500)], 600).size).toBe(0);
   });
 });

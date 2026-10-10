@@ -8,8 +8,8 @@ import { LEVEL_COLOR } from "@/components/level";
 import { SiteHeader } from "@/components/site-header";
 import { TournamentBadge } from "@/components/tournament-badge";
 import { ViewToggle } from "@/components/view-toggle";
-import { getDataset, getDraw, getPlayer, getTournament } from "@/lib/data";
-import { addDays, formatDate, formatShortDate } from "@/lib/dates";
+import { dataDay, getDataset, getDraw, getPlayer, getTournament, nextDates } from "@/lib/data";
+import { formatDate, formatShortDate } from "@/lib/dates";
 import { bracket } from "@/lib/draw";
 import { FINISH_LABEL, LEVEL_LABEL } from "@/lib/points";
 import type { DrawEntrant, Finish } from "@/lib/types";
@@ -45,7 +45,8 @@ export default async function TournamentPage({ params }: PageProps<"/calendar/[i
   for (const g of groups) roundPoints[g.finish] = Math.max(...g.players.map((p) => p.points));
 
   const champion = entrants.find((e) => e.finish === "W");
-  const nextStart = addDays(t.start, 364);
+  const next = nextDates(t);
+  const nextLabel = next.estimated ? "Next edition expected" : next.end < dataDay() ? "Next edition played" : "Next edition";
 
   const name = (e: DrawEntrant) =>
     ranked.includes(e.id) ? (
@@ -97,8 +98,8 @@ export default async function TournamentPage({ params }: PageProps<"/calendar/[i
             </p>
           </div>
           <div className="sm:ml-auto sm:text-right">
-            <p className="text-sm text-on-court-2">Next edition expected</p>
-            <p className="display text-2xl font-semibold">{formatDate(nextStart)}</p>
+            <p className="text-sm text-on-court-2">{nextLabel}</p>
+            <p className="display text-2xl font-semibold">{formatDate(next.start)}</p>
             <p className="text-sm text-on-court-2">These points drop {formatDate(t.drops)}</p>
           </div>
         </div>
